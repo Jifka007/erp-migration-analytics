@@ -29,4 +29,5 @@ clean-targets:         # directories to be removed by `dbt clean`
 
 models:
   erp_migration_analytics:
+    +materialized: view
    
