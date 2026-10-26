@@ -1,0 +1,24 @@
+# Secrets : ne jamais versionner
+profiles.yml
+.env
+keys/
+*service-account*.json
+
+# Fichier scellé du protocole à l'aveugle (exclu jusqu'à la révélation)
+config/delta_plus/sealed_*
+
+# Données générées (reproductibles par le générateur)
+data/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# dbt
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+
+# macOS
+.DS_Store
