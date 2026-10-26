@@ -22,3 +22,6 @@ dbt/logs/
 
 # macOS
 .DS_Store
+
+# Réglages locaux de VS Code
+.vscode/
