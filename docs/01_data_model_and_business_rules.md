@@ -210,12 +210,12 @@ La table `map_transactions` relie chaque commande de l'ancien ERP à son équiva
 | `match_status` | `certain`, `probable` ou `unmatched` |
 | `match_rule` | La règle qui a produit le rapprochement |
 
-**Les trois statuts, sur un exemple.** La commande 45872 de l'ancien ERP (client C0042, article GNT-204, 200 paires demandées pour le 15 avril) est recréée dans le nouvel ERP sous le numéro 1000123 (client 10042, article HAND-000204).
+**Les trois statuts, sur un exemple.** La commande 45872 de la France dans l'ancien ERP (client `00001042`, article `GNT204`, 200 paires demandées pour le 15 avril) est recréée dans M3 sous le numéro `0001000123` (client `FR1042`, article `HAND-000204`).
 
 | Statut | Règle | Dans l'exemple |
 | --- | --- | --- |
-| `certain` | Le champ de référence de migration du nouvel ERP contient l'ancien numéro | Le champ indique 45872 |
-| `probable` | Même client et même article (via les tables de correspondance), même quantité restant à livrer, date demandée identique à 3 jours près | Le champ est vide, mais C0042 = 10042, GNT-204 = HAND-000204, 200 paires, même date demandée |
+| `certain` | Le champ de référence de migration de M3 (`OAYREF`) contient l'ancien numéro | Le champ indique 45872 |
+| `probable` | Même client et même article (via les tables de correspondance), même quantité restant à livrer, date demandée identique à 3 jours près | Le champ est vide, mais `00001042` = `FR1042`, `GNT204` = `HAND-000204`, 200 paires, même date demandée |
 | `unmatched` | Aucune commande équivalente trouvée | Commande annulée, mal ressaisie ou pas encore migrée |
 
 **Pourquoi on ne compare ni la date de commande ni la quantité commandée.** Dans le nouvel ERP, la date de commande est souvent celle de la migration, pas celle d'origine. Et seule la quantité restant à livrer est migrée : si 50 paires étaient parties avant la bascule, le nouvel ERP n'en contient que 150.

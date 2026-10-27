@@ -117,7 +117,7 @@ Les quantités de M3 sont toutes en unité de base : la conversion des boîtes d
 | `OBDLQT` | NUMERIC(15,6) | Quantité livrée | sert de contrôle |
 | `OBCAQT` | NUMERIC(15,6) | Quantité annulée | `cancelled_quantity` |
 | `OBORST` ✓ | VARCHAR(2) | Statut de la ligne : de `05` (saisie) à `99`, `99` signifiant aussi une ligne annulée sans livraison | `order_line_status` |
-| `OBLMDT` | NUMERIC(8,0) | Date de dernière modification | sert à dater une annulation |
+| `OBLMDT` | NUMERIC(8,0) | Date de dernière modification | — |
 
 ### `OOLINE_VERSIONS` : les versions successives des lignes
 
@@ -128,7 +128,7 @@ Chaque modification d'une ligne (date confirmée, quantité, statut) crée une v
 | `VARIATION_NUMBER` | NUMERIC(10,0) | Numéro de version, croissant | — |
 | `VARIATION_TIMESTAMP` | TIMESTAMP | Date et heure de la modification | — |
 
-**C'est d'ici que vient la première date promise** : la date confirmée (`OBCODT`) de la première version où elle est remplie. `OOLINE` donne l'état actuel ; additionner les versions compterait la même ligne plusieurs fois.
+**C'est d'ici que viennent la première date promise et la date d'annulation** : la première promesse est la date confirmée (`OBCODT`) de la première version où elle est remplie ; la date d'annulation est celle de la version où la quantité annulée (`OBCAQT`) augmente, nécessaire au carnet de commandes à une date passée. `OOLINE` donne l'état actuel ; additionner les versions compterait la même ligne plusieurs fois.
 
 ### `MHDISH` et `MHDISL` : les livraisons
 
@@ -208,7 +208,13 @@ Seul l'entrepôt `APT` alimente `fct_stock_snapshots` : le dépôt allemand `DEP
 - **Le stock d'Apt est repris** par des mouvements de type `90`, datés du 7 avril.
 - **Les commandes reprises ont une première version datée du 7 avril** : leur première promesse dans M3 est celle de la reprise, pas celle de l'ancien ERP. Pour ces lignes, l'OTIF officiel n'a de sens qu'avec prudence : elles sont signalées par leur statut de rapprochement.
 
-## 6. Une vente suivie de bout en bout
+## 6. Ce qui n'est pas dans ce document
+
+- Les défauts injectés (enregistrements de test dans M3, anciens codes manquants dans `MMOLDI`, `OKOLDC` et `OAYREF`, références sans correspondance) : tâche 1.6, `config/delta_plus/defects.yml`.
+- Le rapprochement des commandes migrées et le journal de réconciliation : document 01, sections 4 et 5.
+- Les achats fournisseurs et les prévisions : extensions.
+
+## 7. Une vente suivie de bout en bout
 
 La division française (`FRA`) reçoit le 4 mai 2026 la commande `0000045872` du client `FR1042` : 100 paires de gants anti-coupure, demandées pour le 21 mai, confirmées pour le 19 mai, puis repoussées au 25 mai. 60 paires partent le 19 mai, 40 le 29 mai, cinq reviennent abîmées le 10 juin.
 
