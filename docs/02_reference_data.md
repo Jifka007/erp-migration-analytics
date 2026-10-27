@@ -130,8 +130,9 @@ Le nombre de clients extérieurs par entité (`customer_counts_full_scale`, donn
 | --- | --- | --- |
 | 1er janvier 2024 | Début de l'historique | Hypothèse |
 | 1er janvier 2026 | Entrée du Brésil dans le périmètre | Hypothèse, calée sur les acquisitions de Delta Plus en Amérique latine |
-| 26 mars 2026 | Début de l'interruption avant la bascule | Delta Plus |
-| 7 avril 2026 | Bascule de la France et de l'Allemagne vers M3 | Delta Plus |
+| 26 mars 2026 | Début de la suspension des commandes et des livraisons avant la bascule (17 h) | Delta Plus (page « ERP system change ») |
+| 7 avril 2026 | Mise en production de la première vague d'Infor M3 | Delta Plus (page « ERP system change », rapport semestriel 2026) |
+| 7 avril 2026 | Dans le projet, la première vague = France et Allemagne | Hypothèse : les entités de la première vague ne sont pas publiques ; la France est le siège et la plateforme principale |
 | 30 septembre 2026 | Fin de l'historique | Hypothèse |
 
 ## 9. L'échelle et les ratios de vraisemblance
@@ -159,6 +160,7 @@ Le nombre de clients extérieurs par entité (`customer_counts_full_scale`, donn
 - [TPBM, « Delta Plus Group, leader indépendant des équipements de protection à l'international » (février 2023)](https://mesinfos.fr/provence-alpes-cote-d-azur/delta-plus-group-leader-independant-des-equipements-de-protection-a-l-international-120836.html)
 - [Zonebourse, « Delta Plus Group : équipés de la tête aux pieds » (mai 2022)](https://www.zonebourse.com/cours/action/DELTA-PLUS-GROUP-37879274/actualite/Delta-Plus-Group-equipes-de-la-tete-aux-pieds-40299366/)
 - [Le Moci, « Delta Plus rentabilise son dispositif chinois »](https://lemoci.com/actualites/actualites/logistique-delta-plus-rentabilise-son-dispositif-chinois)
+- [Delta Plus, ERP system change](https://www.deltaplus.eu/en-US/erp-system-change)
 - [Delta Plus, résultats semestriels 2026](https://media.deltaplus.eu/asset/bc1d5cfc-3229-410f-989e-2871f7a15dc1/31-08-26-Communique-Delta-Plus-Group-Resultats-semestriels-2026.pdf)
 - [Delta Plus, catalogue en ligne](https://www.deltaplus.eu/en-US/)
 - [Delta Plus, présentation du groupe](https://www.deltaplus.eu/en/our-company)
