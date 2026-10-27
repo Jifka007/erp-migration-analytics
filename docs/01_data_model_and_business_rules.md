@@ -123,7 +123,7 @@ Chaque indicateur est rattaché à une seule table de faits. C'est le critère d
 - **Devises** : taux moyens mensuels calculés à partir des taux de référence quotidiens de la BCE. Le dirham des Émirats (AED), absent des taux BCE, est converti via le dollar, grâce à son taux d'arrimage fixe.
 - **Ventes entre filiales** : repérées par un indicateur sur les lignes de commande et de vente (`is_intercompany`), et exclues du CA consolidé. Un client qui est lui-même une entité du groupe le dit dans le référentiel client, avec l'entité correspondante : c'est ainsi qu'on connaît l'entité qui achète.
 
-**Trois règles de calcul complémentaires :**
+**Les règles de calcul complémentaires :**
 
 - **Le pont du carnet de commandes**, contrôle de cohérence mensuel : carnet de fin de mois = carnet de début de mois + prises de commandes − montants expédiés − annulations. Un écart signale un problème de données. Il évite aussi un piège classique : les commandes du mois moins le CA du mois ne donnent pas les commandes non livrées, car le CA d'un mois vient aussi de commandes plus anciennes.
 - **Le stock est une mesure semi-additive.** On additionne les stocks de plusieurs articles ou plateformes à une même date, mais jamais les fins de mois entre elles. Sur une période, on prend la valeur de fin de période, ou une moyenne des fins de mois.
@@ -131,6 +131,23 @@ Chaque indicateur est rattaché à une seule table de faits. C'est le critère d
 - **Un seul coût unitaire pour tout le projet : le coût groupe de l'article.** La filiale qui revend une marchandise achetée à une plateforme du groupe enregistre dans son ERP un coût égal au prix interne (6 € dans l'exemple ci-dessous) : ce coût n'est jamais utilisé. La marge brute comme la valeur du stock utilisent le coût groupe de l'article pour le mois, tel que le fournit la fiche article de l'ERP.
 - **Le stock est valorisé au coût d'origine pour le groupe**, c'est-à-dire au coût d'achat ou de fabrication auprès de l'extérieur, jamais au prix de vente interne. Une marchandise vendue 6 € par la plateforme chinoise à la filiale allemande, qui l'avait payée 4 € à un fournisseur, reste à 4 € dans le stock du groupe : la marge interne de 2 € n'existe pour le groupe qu'une fois la marchandise revendue à un client extérieur.
 - **Le stock se suit en unités et en valeur.** La valeur peut bouger sans que les quantités changent (coûts d'achat, change, mix des articles, dépréciations) : les deux mesures sont toujours affichées ensemble.
+
+**Quel indicateur pour quelle activité.** Une entité peut vendre à des clients extérieurs, approvisionner les autres entités, ou faire les deux (document 02, section 2). On ne choisit pas une liste d'indicateurs selon le type d'entité : chaque indicateur est défini une seule fois, avec les lignes qu'il retient et l'axe sur lequel il se lit. Le filtre fait le travail.
+
+| Activité | Lignes retenues | Axe de lecture | Indicateurs |
+| --- | --- | --- | --- |
+| Commerciale | Commandes et ventes aux clients extérieurs (`is_intercompany` faux) | L'entité (`dim_entity`), et la plateforme d'expédition pour l'OTIF | CA, croissance (organique, change, périmètre), marge brute, écart au budget, prises de commandes, carnet, clients actifs, OTIF, écart de promesse |
+| Logistique | Stock des plateformes et toutes leurs sorties, envois aux autres entités compris | La plateforme (`dim_warehouse`) | Ventes internes (envois aux autres entités), couverture, stock dormant, dépréciation, valeur du stock |
+
+Conséquences :
+
+- **Une filiale commerciale** (Allemagne, Espagne, Émirats, Brésil) n'apparaît que dans la vue commerciale : elle n'a pas de plateforme.
+- **Une plateforme pure**, qui ne vendrait qu'aux autres entités (aucun cas dans le groupe fictif), aurait un CA consolidé nul et n'apparaîtrait que dans la vue logistique.
+- **Une entité qui fait les deux** (France, Chine) apparaît deux fois : comme entité (`FR`, `CN`) dans les pages de croissance, et comme plateforme (`FR-APT`, `CN-SHA`) dans les pages de stock et de service.
+
+**Pourquoi on ne juge jamais une plateforme sur ses ventes internes.** La plateforme chinoise vend une paire de gants 6 € à la filiale française, qui la revend 10 € à un distributeur : les 6 € disparaissent en consolidation, le groupe n'a vendu qu'une paire, pour 10 €. Jugée sur ses ventes internes, une plateforme pourrait les augmenter en poussant du stock vers les filiales, sans que le groupe vende une paire de plus. Ses ventes internes se lisent donc en volume, à côté des ventes extérieures des filiales qu'elle approvisionne : des envois qui montent pendant que les ventes des filiales stagnent signalent du stock qui s'accumule chez les filiales.
+
+**L'OTIF porte sur les clients extérieurs.** Le service rendu par une plateforme aux autres entités (un OTIF interne) n'est pas mesuré dans le cœur : voir la section 8.
 
 ## 3. Pourquoi ces règles ont du sens pour Delta Plus
 
@@ -261,6 +278,7 @@ Ces idées sont notées pour ne pas les perdre, mais elles ne modifient pas les 
 - Le délai d'expédition (jours entre commande et expédition) comme indicateur suivi : il recoupe l'OTIF et l'écart de promesse. Les dates étant disponibles, il reste un outil de diagnostic quand l'OTIF baisse.
 - Le stock dans chaque filiale, en plus des plateformes. Il permettrait de voir une plateforme « pousser » du stock vers une filiale qui vend de moins en moins : le stock s'accumule chez la filiale sans que le CA consolidé ne le montre, et la plateforme paraît performante dans ses propres comptes. Avec les achats de chaque filiale, on mesurerait aussi l'intégration d'une filiale rachetée, par la part de ses achats faite auprès du groupe. Ce sont des analyses à forte valeur, mais elles demandent de générer des stocks et des achats par filiale.
 - Le recalcul du coût moyen pondéré à partir des achats fournisseurs.
+- Un OTIF interne : la part des commandes des filiales servies à l'heure et en totalité par leur plateforme. Il mesurerait le service de la plateforme à ses clientes internes, mais demande de générer des dates promises sur les commandes entre entités.
 - Le stock dormant par taille. Un article du projet est un modèle, sans taille ; dans la réalité, un modèle de chaussure a une référence par pointure, et le stock dormant se cache souvent dans les tailles extrêmes (36, 48). Il faudrait multiplier les articles par dix et générer une courbe de tailles réaliste.
 - Les promesses repoussées et leur motif. Compter les lignes dont la date promise a changé, et de combien de jours, donne un signal d'alerte : beaucoup de reports annoncent des difficultés d'approvisionnement. Avec un motif de report (demande du client, retard fournisseur, rupture de stock, autre), on distinguerait les retards subis des reports demandés par le client, qu'il serait injuste de compter comme des échecs de l'OTIF. Conception prévue : dans l'export de type M3 seulement, `reschedule_count` (nombre de reports) et `reschedule_reason_code` (motif du dernier report), rempli de façon partielle comme dans la réalité, où ces champs facultatifs restent souvent vides ; l'ancien ERP n'a pas de motif, si bien que l'analyse n'est possible qu'après la bascule.
 - L'écart au budget à taux budget : un budget est construit avec un taux de change supposé (le « taux budget »). Comparer le réalisé au budget au même taux isole la vraie performance d'une filiale, qui ne maîtrise pas les monnaies ; au taux réel, une filiale peut sembler sous son objectif uniquement parce que sa monnaie a baissé.
