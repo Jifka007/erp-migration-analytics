@@ -37,6 +37,7 @@ entities:
   - entity_id: FR
     entity_name: Delta France
     country_code: FR
+    country_name: France
     zone: europe
     currency_code: EUR
     is_platform: true
@@ -50,6 +51,7 @@ entities:
   - entity_id: DE
     entity_name: Delta Deutschland
     country_code: DE
+    country_name: Allemagne
     zone: europe
     currency_code: EUR
     is_platform: false
@@ -63,6 +65,7 @@ entities:
   - entity_id: ES
     entity_name: Delta España
     country_code: ES
+    country_name: Espagne
     zone: europe
     currency_code: EUR
     is_platform: false
@@ -76,6 +79,7 @@ entities:
   - entity_id: CN
     entity_name: Delta China
     country_code: CN
+    country_name: Chine
     zone: outside_europe
     currency_code: CNY
     is_platform: true
@@ -89,6 +93,7 @@ entities:
   - entity_id: AE
     entity_name: Delta Middle East
     country_code: AE
+    country_name: Émirats arabes unis
     zone: outside_europe
     currency_code: AED
     is_platform: false
@@ -102,6 +107,7 @@ entities:
   - entity_id: BR
     entity_name: Delta Brasil
     country_code: BR
+    country_name: Brésil
     zone: outside_europe
     currency_code: BRL
     is_platform: false
@@ -135,11 +141,15 @@ warehouses:
   - warehouse_id: FR-APT
     warehouse_name: Plateforme d'Apt
     entity_id: FR
+    city_name: Apt
     country_code: FR
+    country_name: France
   - warehouse_id: CN-SHA
     warehouse_name: Plateforme de Shanghai
     entity_id: CN
+    city_name: Shanghai
     country_code: CN
+    country_name: Chine
 
 # -------------------------------------------------------------------
 # Gammes et familles d'articles

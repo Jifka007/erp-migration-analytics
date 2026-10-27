@@ -23,6 +23,8 @@ Les sources suivent la légende du document [01](01_data_model_and_business_rule
 | AE | Émirats arabes unis | Hors Europe | AED | non | oui | `legacy_erp` / `legacy_erp` | début de l'historique |
 | BR | Brésil | Hors Europe | BRL | non | oui | `brazil_file` | 1er janvier 2026 |
 
+**Le pays en clair.** Chaque entité porte son code pays (`country_code`, norme ISO) et son nom en français (`country_name`), pour que les rapports restent lisibles sans table de correspondance. La ville n'est donnée que pour les plateformes (Apt, Shanghai), seules villes appuyées par une source ; pour les filiales commerciales, le pays suffit.
+
 **Deux booléens plutôt qu'un rôle.** Une entité peut approvisionner d'autres filiales (`is_platform`) et vendre à des clients extérieurs (`has_external_sales`) : ce ne sont pas deux catégories exclusives. Apt est à la fois siège, plateforme logistique et entité qui vend en France *(Delta Plus)*. Les ventes locales de la Chine sont une *hypothèse*. Un rôle unique (« plateforme » ou « commerciale ») aurait été faux pour la France ; Delta Plus ne publie d'ailleurs pas une telle distinction.
 
 **Ce que ça change pour le pilotage.** Le CA interne d'une plateforme disparaît en consolidation : elle se juge sur ses expéditions aux filiales et son stock. Son CA extérieur se juge comme celui de n'importe quelle filiale.
