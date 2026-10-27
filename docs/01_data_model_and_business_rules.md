@@ -28,26 +28,26 @@ Une commande, une expédition et une facture sont trois événements différents
 
 | Table | Une ligne = | Clé | Dates principales | Mesures |
 | --- | --- | --- | --- | --- |
-| `fct_order_lines` | une ligne de commande | `company_id`, `order_number`, `order_line_number`, `order_line_suffix`, `source_system` | commande, demandée, première date promise, date promise actuelle | quantité commandée, quantité restant à livrer, quantité annulée, montant ; indicateur de vente entre filiales |
+| `fct_order_lines` | une ligne de commande | `entity_id`, `order_number`, `order_line_number`, `order_line_suffix`, `source_system` | commande, demandée, première date promise, date promise actuelle, annulation | quantité commandée, quantité restant à livrer, quantité annulée, montant ; indicateur de vente entre filiales ; pour l'OTIF : date de la dernière expédition et quantité totale expédiée, reprises des expéditions |
 | `fct_deliveries` | une expédition d'une ligne de commande | `delivery_number`, clé de la ligne de commande | expédition, première date promise | quantité expédiée, plateforme d'expédition (`warehouse_id`) |
-| `fct_sales_lines` | une ligne de facture ou d'avoir | `invoice_number`, `invoice_line_number`, `source_system` | facture | quantité, montant en devise locale, en euros, aux taux de l'année précédente, coût de revient ; pour un avoir : son type et la facture d'origine |
-| `fct_stock_snapshots` | un article, une plateforme, une fin de mois | `product_id`, `warehouse_id`, `month_end_date` | fin de mois, dernière vente | quantité en stock, coût moyen pondéré, valeur brute, dépréciation, valeur nette |
+| `fct_sales_lines` | une ligne de facture ou d'avoir | `entity_id`, `invoice_number`, `invoice_line_number`, `source_system` | facture | quantité, montant en devise locale, en euros, aux taux de l'année précédente, coût de revient ; indicateur de vente entre filiales ; liens vers la ligne de commande et l'expédition facturées ; pour un avoir : son type et la facture d'origine |
+| `fct_stock_snapshots` | un article, une plateforme, une fin de mois | `product_id`, `warehouse_id`, `month_end_date` | fin de mois, dernière sortie | quantité en stock, coût moyen pondéré, valeur brute, dépréciation, valeur nette ; sorties des trois derniers mois, mois par mois |
 | `fct_budget` | une filiale, une gamme, un mois | `entity_id`, `product_line_id`, `month_start_date` | mois | chiffre d'affaires cible |
 
 **Une histoire pour comprendre les cinq tables.** La filiale française (société `FR`) reçoit le 3 mars, dans l'ancien ERP, la commande 45872 d'un distributeur : 100 paires de gants (ligne 1) et 20 casques (ligne 2). On suit les gants. Les noms de colonnes sont indicatifs : ils seront fixés précisément lors de la conception des sources.
 
 *1. `fct_order_lines` : une ligne par ligne de commande.*
 
-| company_id | order_number | order_line_number | order_line_suffix | source_system | order_date | requested_date | first_promised_date | ordered_quantity | open_quantity | net_amount_eur |
+| entity_id | order_number | order_line_number | order_line_suffix | source_system | order_date | requested_date | first_promised_date | ordered_quantity | open_quantity | net_amount_eur |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | FR | 45872 | 1 | 0 | legacy_erp | 3 mars | 20 mars | 18 mars | 100 | 0 | 1 000 |
 | FR | 45872 | 2 | 0 | legacy_erp | 3 mars | 20 mars | 18 mars | 20 | 0 | 400 |
 
-La clé a cinq colonnes, et chacune évite un doublon : `order_line_number` parce qu'une commande a plusieurs lignes ; `company_id` parce que la filiale allemande peut aussi avoir une commande n° 45872 ; `source_system` parce que l'ancien ERP et M3 peuvent réutiliser les mêmes numéros ; `order_line_suffix` parce que M3 peut découper une ligne en sous-lignes (0 quand il n'y en a pas).
+La clé a cinq colonnes, et chacune évite un doublon : `order_line_number` parce qu'une commande a plusieurs lignes ; `entity_id` (la filiale, qui correspond à la « société » des ERP, `CONO` dans M3) parce que la filiale allemande peut aussi avoir une commande n° 45872 ; `source_system` parce que l'ancien ERP et M3 peuvent réutiliser les mêmes numéros ; `order_line_suffix` parce que M3 peut découper une ligne en sous-lignes (0 quand il n'y en a pas).
 
 *2. `fct_deliveries` : une ligne par expédition d'une ligne de commande.* Les gants partent en deux fois.
 
-| delivery_number | company_id | order_number | order_line_number | warehouse_id | shipped_date | first_promised_date | shipped_quantity |
+| delivery_number | entity_id | order_number | order_line_number | warehouse_id | shipped_date | first_promised_date | shipped_quantity |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | L-901 | FR | 45872 | 1 | FR-APT | 18 mars | 18 mars | 60 |
 | L-934 | FR | 45872 | 1 | FR-APT | 28 mars | 18 mars | 40 |
@@ -56,17 +56,17 @@ La clé reprend celle de la ligne de commande : c'est elle qui relie l'expéditi
 
 *3. `fct_sales_lines` : une ligne par ligne de facture ou d'avoir.* Une facture par expédition, puis un avoir pour 5 paires abîmées.
 
-| invoice_number | invoice_line_number | source_system | invoice_date | quantity | net_amount_eur | cost_amount_eur | credit_note_type |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| F-5001 | 1 | legacy_erp | 18 mars | 60 | 600 | 252 | — |
-| F-5043 | 1 | legacy_erp | 28 mars | 40 | 400 | 168 | — |
-| A-0077 | 1 | legacy_erp | 10 avril | − 5 | − 50 | − 21 | retour |
+| entity_id | invoice_number | invoice_line_number | source_system | delivery_number | invoice_date | quantity | net_amount_eur | cost_amount_eur | credit_note_type |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| FR | F-5001 | 1 | legacy_erp | L-901 | 18 mars | 60 | 600 | 252 | — |
+| FR | F-5043 | 1 | legacy_erp | L-934 | 28 mars | 40 | 400 | 168 | — |
+| FR | A-0077 | 1 | legacy_erp | — | 10 avril | − 5 | − 50 | − 21 | retour |
 
 CA de mars : 1 000 € ; marge brute de mars : 1 000 − 420 = 580 € ; CA d'avril : − 50 €, l'avoir étant compté à sa date d'émission.
 
 *4. `fct_stock_snapshots` : une ligne par article, plateforme et fin de mois.* C'est une photo : le stock ne « sait » pas pour quelle commande il est, d'où une clé sans numéro de commande.
 
-| product_id | warehouse_id | month_end_date | last_sale_date | stock_quantity | unit_cost_amount_eur | gross_stock_amount_eur | impairment_amount_eur | net_stock_amount_eur |
+| product_id | warehouse_id | month_end_date | last_shipped_date | stock_quantity | unit_cost_amount_eur | gross_stock_amount_eur | impairment_amount_eur | net_stock_amount_eur |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | GNT-204 | FR-APT | 31 mars | 28 mars | 900 | 4,20 | 3 780 | 0 | 3 780 |
 | GNT-204 | FR-APT | 30 avril | 22 avril | 850 | 4,20 | 3 570 | 0 | 3 570 |
@@ -83,11 +83,13 @@ Le budget ne connaît ni commandes ni articles, seulement la gamme « mains » :
 
 **Ce que montre l'histoire :** un même événement métier, la commande de 100 paires, laisse une trace différente dans chaque table : une ligne de commande, deux expéditions, deux factures et un avoir, une photo de stock par mois. Tout mettre dans une seule table ferait compter les 100 paires plusieurs fois. Les colonnes `product_id`, `entity_id` ou `warehouse_id` renvoient aux tables de dimensions (`dim_product`, `dim_entity`, `dim_warehouse`), où se trouvent le nom de l'article, sa gamme ou le pays de la filiale.
 
+**Chaque table de faits porte aussi ses références** vers les dimensions : la filiale (`entity_id`, qui renvoie à `dim_entity`), le client, l'article, la plateforme. Les lignes de facture gardent en plus le lien vers la ligne de commande et l'expédition facturées : c'est ce lien qui permet d'appliquer le rapprochement des commandes migrées (section 4) au chiffre d'affaires, et de savoir de quelle plateforme part la marchandise vendue.
+
 **La première date promise est conservée à part.** Quand une promesse est repoussée, un ERP écrase souvent l'ancienne date. Les lignes de commande gardent donc deux colonnes : `first_promised_date`, la promesse d'origine, utilisée par l'OTIF et l'écart de promesse, et `promised_date`, la promesse actuelle.
 
 **Le budget a sa propre table**, car il est saisi par filiale, gamme et mois, alors que le chiffre d'affaires est à la ligne de facture. Les deux se comparent au niveau commun (filiale, gamme, mois), grâce aux dimensions partagées `dim_entity`, `dim_product` et `dim_date` (dimensions conformes, au sens de Kimball).
 
-**Le fichier de la filiale brésilienne** contient des lignes de facture, comme un export comptable : il alimente directement `fct_sales_lines`, sans casser le grain.
+**Le fichier de la filiale brésilienne** contient des lignes de facture, comme un export comptable : il alimente directement `fct_sales_lines`, sans casser le grain. Il ne contient ni commandes, ni expéditions, ni stock : tant qu'elle n'est pas intégrée, la filiale brésilienne compte dans le CA, la marge et la croissance, mais pas dans l'OTIF, le carnet ni le stock. C'est une limite assumée, et un argument pour son intégration.
 
 **Les règlements clients** (dates d'échéance et de paiement) ne font pas partie des sources du cœur du projet. Le délai de paiement (DSO) est une extension possible.
 
@@ -105,13 +107,13 @@ Chaque indicateur est rattaché à une seule table de faits. C'est le critère d
 | Ventes internes | `fct_sales_lines` | Ventes dont le client est une entité du groupe (`is_intercompany` vrai), par entité qui vend et entité qui achète, comparées aux ventes externes de chaque entité. Le stock n'étant suivi que dans les plateformes, l'accumulation de stock chez une filiale n'est pas mesurée (voir section 8) | Pratique courante | Direction financière, supply chain |
 | Écart au budget | `fct_budget` | CA réalisé moins CA cible, comparés par filiale, gamme et mois | Pratique courante | Contrôle de gestion |
 | Prises de commandes | `fct_order_lines` | Montant des commandes enregistrées sur la période, à la date de commande, hors ventes entre filiales | Pratique courante | Direction commerciale |
-| Carnet de commandes | `fct_order_lines` | Montant des quantités restant à livrer sur les commandes ouvertes, à une date donnée | Pratique courante | Direction commerciale |
-| Client actif | `fct_order_lines` | Au moins une commande sur les 12 derniers mois | Hypothèse | Direction commerciale |
-| OTIF (*On Time In Full*) | `fct_deliveries` | Part des lignes de commande livrées à l'heure et en totalité : nombre de lignes OTIF divisé par le nombre de lignes dont la première date promise tombe dans la période. Une ligne est OTIF si sa dernière expédition (`shipped_date`) a lieu au plus tard à sa première date promise (`first_promised_date`) et si la quantité totale expédiée (`shipped_quantity`) égale la quantité commandée (`ordered_quantity`). Une expédition en avance compte comme à l'heure. La variante à la date demandée par le client (`requested_date`) est calculée aussi | Hypothèse (il n'existe pas de définition standard), appuyée par les conditions générales de vente de Delta Plus (expédition par transporteur, délais indicatifs) | Supply chain |
+| Carnet de commandes | `fct_order_lines` | Montant des quantités restant à livrer sur les commandes ouvertes, à une date donnée : quantité commandée, moins les quantités expédiées et annulées avant cette date, au prix de la ligne de commande | Pratique courante | Direction commerciale |
+| Client actif | `fct_order_lines` | Client extérieur au groupe ayant passé au moins une commande sur les 12 derniers mois | Hypothèse | Direction commerciale |
+| OTIF (*On Time In Full*) | `fct_order_lines` | Part des lignes de commande livrées à l'heure et en totalité : nombre de lignes OTIF divisé par le nombre de lignes dont la première date promise tombe dans la période. Une ligne est OTIF si sa dernière expédition (`shipped_date`) a lieu au plus tard à sa première date promise (`first_promised_date`) et si la quantité totale expédiée (`shipped_quantity`) égale la quantité commandée (`ordered_quantity`). Une expédition en avance compte comme à l'heure. La variante à la date demandée par le client (`requested_date`) est calculée aussi | Hypothèse (il n'existe pas de définition standard), appuyée par les conditions générales de vente de Delta Plus (expédition par transporteur, délais indicatifs) | Supply chain |
 | Écart de promesse | `fct_order_lines` | Nombre de jours entre la date demandée par le client (`requested_date`) et la première date promise (`first_promised_date`), et part des lignes promises plus tard que demandé | Pratique courante | Supply chain, direction commerciale |
-| Couverture de stock | `fct_stock_snapshots` | Pour un article : stock en quantité divisé par la quantité moyenne expédiée par mois sur les trois derniers mois. Dès qu'on regroupe des articles (famille, plateforme, groupe) : stock en valeur au coût divisé par le coût moyen des marchandises sorties par mois. Exprimée en mois, toujours affichée avec l'évolution des ventes sur les trois mois | Pratique courante | Supply chain |
-| Dépréciation du stock | `fct_stock_snapshots` | Valeur brute multipliée par un taux selon l'ancienneté : 0 % si vendu dans les 12 derniers mois et couverture d'un an au plus ; 50 % si aucune vente depuis 12 à 24 mois ou couverture de plus d'un an ; 100 % si aucune vente depuis plus de 24 mois | Hypothèse (grille par ancienneté, pratique courante) | Direction financière |
-| Stock dormant | `fct_stock_snapshots` | Aucune vente depuis 12 mois, ou couverture supérieure à un an | Hypothèse | Supply chain, direction financière |
+| Couverture de stock | `fct_stock_snapshots` | Pour un article : stock en quantité divisé par la quantité moyenne sortie par mois sur les trois derniers mois. Les sorties d'une plateforme comprennent les expéditions aux clients et les envois aux autres entités du groupe. Dès qu'on regroupe des articles (famille, plateforme, groupe) : stock en valeur au coût divisé par le coût moyen des marchandises sorties par mois. Exprimée en mois, toujours affichée avec l'évolution des ventes sur les trois mois | Pratique courante | Supply chain |
+| Dépréciation du stock | `fct_stock_snapshots` | Valeur brute multipliée par un taux selon l'ancienneté : 0 % si sorti dans les 12 derniers mois et couverture d'un an au plus ; 50 % si aucune sortie depuis 12 à 24 mois ou couverture de plus d'un an ; 100 % si aucune sortie depuis plus de 24 mois | Hypothèse (grille par ancienneté, pratique courante) | Direction financière |
+| Stock dormant | `fct_stock_snapshots` | Aucune sortie depuis 12 mois, ou couverture supérieure à un an | Hypothèse | Supply chain, direction financière |
 | Taux de correspondance | `fct_sales_lines` | Part du CA rapproché entre systèmes (pondérée par le CA), en plus de la part de lignes ; lignes en cause consultables | Hypothèse | Direction informatique |
 | Doublons de bascule | `fct_sales_lines` | Nombre et montant des transactions présentes dans les deux ERP, selon `map_transactions` (section 4) | Hypothèse | Direction informatique |
 
@@ -119,13 +121,14 @@ Chaque indicateur est rattaché à une seule table de faits. C'est le critère d
 
 - **Quantités** : toujours exprimées en unité de base (paire ou pièce), converties dès la couche de staging.
 - **Devises** : taux moyens mensuels calculés à partir des taux de référence quotidiens de la BCE. Le dirham des Émirats (AED), absent des taux BCE, est converti via le dollar, grâce à son taux d'arrimage fixe.
-- **Ventes entre filiales** : repérées par un indicateur sur la ligne de vente (`is_intercompany`), et exclues du CA consolidé.
+- **Ventes entre filiales** : repérées par un indicateur sur les lignes de commande et de vente (`is_intercompany`), et exclues du CA consolidé. Un client qui est lui-même une entité du groupe le dit dans le référentiel client, avec l'entité correspondante : c'est ainsi qu'on connaît l'entité qui achète.
 
 **Trois règles de calcul complémentaires :**
 
 - **Le pont du carnet de commandes**, contrôle de cohérence mensuel : carnet de fin de mois = carnet de début de mois + prises de commandes − montants expédiés − annulations. Un écart signale un problème de données. Il évite aussi un piège classique : les commandes du mois moins le CA du mois ne donnent pas les commandes non livrées, car le CA d'un mois vient aussi de commandes plus anciennes.
 - **Le stock est une mesure semi-additive.** On additionne les stocks de plusieurs articles ou plateformes à une même date, mais jamais les fins de mois entre elles. Sur une période, on prend la valeur de fin de période, ou une moyenne des fins de mois.
 - **La valeur du stock = quantité × coût unitaire.** Le coût unitaire est celui que fournit l'ERP pour chaque article et chaque mois, supposé calculé au coût moyen pondéré : la moyenne des coûts d'achat, pondérée par les quantités achetées. Le projet l'utilise tel quel ; le recalculer à partir des achats fournisseurs est une extension. Valeur nette = valeur brute − dépréciation.
+- **Un seul coût unitaire pour tout le projet : le coût groupe de l'article.** La filiale qui revend une marchandise achetée à une plateforme du groupe enregistre dans son ERP un coût égal au prix interne (6 € dans l'exemple ci-dessous) : ce coût n'est jamais utilisé. La marge brute comme la valeur du stock utilisent le coût groupe de l'article pour le mois, tel que le fournit la fiche article de l'ERP.
 - **Le stock est valorisé au coût d'origine pour le groupe**, c'est-à-dire au coût d'achat ou de fabrication auprès de l'extérieur, jamais au prix de vente interne. Une marchandise vendue 6 € par la plateforme chinoise à la filiale allemande, qui l'avait payée 4 € à un fournisseur, reste à 4 € dans le stock du groupe : la marge interne de 2 € n'existe pour le groupe qu'une fois la marchandise revendue à un client extérieur.
 - **Le stock se suit en unités et en valeur.** La valeur peut bouger sans que les quantités changent (coûts d'achat, change, mix des articles, dépréciations) : les deux mesures sont toujours affichées ensemble.
 
@@ -158,11 +161,13 @@ OTIF de mars = 1 ligne sur 4, soit 25 %. Décomposer en « à l'heure » et « e
 
 **L'écart de promesse, un signal d'alerte précoce.** L'OTIF mesure si Delta Plus tient sa parole ; l'écart entre la date demandée et la date promise mesure ce qu'il promet. Si Delta Plus promet de plus en plus souvent plus tard que ce que le client demande, il manque de stock ou de capacité, et on le voit avant que l'OTIF ne baisse : un OTIF stable peut cacher une dégradation, du type « on tient nos promesses, mais on promet de plus en plus tard ».
 
+**Pourquoi l'OTIF est rattaché aux lignes de commande, et non aux expéditions.** Une ligne jamais expédiée n'a aucune ligne dans `fct_deliveries` : si l'OTIF y était calculé, elle disparaîtrait. On le calcule donc sur `fct_order_lines`, où chaque ligne reçoit, depuis les expéditions, sa date de dernière expédition et sa quantité totale expédiée.
+
 Trois choix à savoir justifier. **Le dénominateur, ce sont les lignes promises dans la période**, et non celles expédiées : sinon, une ligne jamais expédiée sortirait du calcul alors que c'est le pire échec. **On garde la première date promise** : si la promesse est repoussée en cours de route, la nouvelle date ne compte pas, sinon il suffirait de décaler la promesse pour être toujours à l'heure. **Une expédition en avance compte comme à l'heure** (hypothèse) : certaines entreprises la comptent comme un échec, car le distributeur doit stocker et payer plus tôt ; McKinsey cite par exemple une tolérance d'un seul jour d'avance.
 
 **Le client actif à 12 mois (hypothèse).** Un distributeur d'EPI commande régulièrement, mais avec une saisonnalité (chantiers, budgets annuels des entreprises clientes). Une fenêtre de 12 mois couvre un cycle complet de saisons : un client qui n'a rien commandé depuis un an est réellement inactif, pas seulement en creux saisonnier.
 
-**Le stock dormant à 12 mois sans vente ou à plus d'un an de couverture (hypothèse).** Dans la littérature, un stock à rotation lente se situe souvent entre 90 et 180 jours sans mouvement, mais le seuil dépend du secteur. Les EPI ne se périment pas vite et restent longtemps au catalogue ; et la couverture normale du groupe est déjà élevée, d'environ 8 mois (118 M€ de stock pour environ 170 M€ de coût d'achat des marchandises vendues par an). Un seuil à un an désigne donc ce qui sort nettement de la normale du groupe, sans signaler à tort des produits simplement lents.
+**Le stock dormant à 12 mois sans sortie ou à plus d'un an de couverture (hypothèse).** Dans la littérature, un stock à rotation lente se situe souvent entre 90 et 180 jours sans mouvement, mais le seuil dépend du secteur. Les EPI ne se périment pas vite et restent longtemps au catalogue ; et la couverture normale du groupe est déjà élevée, d'environ 8 mois (118 M€ de stock pour environ 171 M€ de coût d'achat des marchandises vendues par an). Un seuil à un an désigne donc ce qui sort nettement de la normale du groupe, sans signaler à tort des produits simplement lents.
 
 **La couverture sur trois mois de sorties, en volume et en valeur (pratique courante).** Trois mois lissent les à-coups d'une semaine ou d'un mois, tout en restant assez récents pour refléter une baisse de la demande. Mais une moyenne réagit en retard : un article vendu 90, puis 60, puis 30 a une couverture moyenne qui sous-estime la réalité ; c'est pourquoi la couverture est toujours affichée avec l'évolution des ventes. En volume, la couverture n'a de sens que pour un article (on n'additionne pas des gants et des casques). Dès qu'on regroupe, on passe en valeur au coût : c'est le seul moyen d'additionner des articles différents, et c'est la mesure qui intéresse la finance, car c'est de l'argent immobilisé. À l'échelle du groupe, Delta Plus a environ 8 mois de couverture : 118 M€ de stock au 30 juin 2026 pour environ 171 M€ de coût des marchandises vendues en 2025 (389,6 M€ de CA × 44 %), soit 14,3 M€ par mois.
 
@@ -182,6 +187,7 @@ La table `map_transactions` relie chaque commande de l'ancien ERP à son équiva
 
 | Colonne | Contenu |
 | --- | --- |
+| `entity_id` | La filiale concernée |
 | `legacy_order_number` | Numéro dans l'ancien ERP |
 | `m3_order_number` | Numéro dans le nouvel ERP |
 | `match_status` | `certain`, `probable` ou `unmatched` |
@@ -212,12 +218,12 @@ Un journal mensuel, par filiale, explique le passage des totaux bruts des source
 | Colonne | Contenu |
 | --- | --- |
 | `month_start_date`, `entity_id` | Le mois et la filiale |
-| `source_total_eur` | Total des lignes de facture et d'avoir de toutes les sources |
-| `migration_duplicates_eur` | Moins les doublons de migration (`certain` et `probable`) |
-| `intercompany_sales_eur` | Moins les ventes entre filiales |
-| `test_and_rejected_eur` | Moins les lignes de test et les lignes rejetées par les contrôles |
-| `consolidated_revenue_eur` | Égale le CA consolidé |
-| `residual_gap_eur` | L'écart entre ce calcul et le CA des modèles finaux, qui doit être nul |
+| `source_total_amount_eur` | Total des lignes de facture et d'avoir de toutes les sources |
+| `migration_duplicates_amount_eur` | Moins les doublons de migration (`certain` et `probable`) |
+| `intercompany_sales_amount_eur` | Moins les ventes entre filiales |
+| `test_and_rejected_amount_eur` | Moins les lignes de test et les lignes rejetées par les contrôles |
+| `consolidated_revenue_amount_eur` | Égale le CA consolidé |
+| `residual_gap_amount_eur` | L'écart entre ce calcul et le CA des modèles finaux, qui doit être nul |
 
 Tout écart résiduel non nul fait échouer un test et renvoie vers les lignes en cause. L'écart est suivi de près autour de la bascule (mars à mai 2026).
 
