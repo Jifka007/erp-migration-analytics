@@ -1,0 +1,156 @@
+// Ancien ERP : schéma relationnel (à coller dans dbdiagram.io)
+// Documentation : docs/sources/01_legacy_erp.md
+// Les relations sont documentaires : la base n'impose aucune clé étrangère.
+
+Project legacy_erp {
+  database_type: 'PostgreSQL'
+  Note: 'Ancien ERP générique de type AS400, multi-sociétés. Dates au format CYYMMDD.'
+}
+
+Table SOCIET {
+  SOSOC char(3) [pk, note: 'Code société (010 FR, 020 DE, 030 ES, 040 CN, 050 AE)']
+  SONOM char(30) [note: 'Raison sociale']
+  SODEV char(3) [note: 'Devise']
+  SOPAYS char(2) [note: 'Pays ISO']
+}
+
+Table CLIENT {
+  CLSOC char(3) [note: 'Société propriétaire']
+  CLCODE char(8) [note: 'Code client, zéros devant']
+  CLNOM char(40) [note: 'Raison sociale']
+  CLTYPE char(3) [note: 'DIS distributeur, GRP société du groupe']
+  CLSEGM char(3) [note: 'NEG, SPE, GEN, GSB ; vide pour GRP']
+  CLSOCG char(3) [note: 'Société représentée (clients GRP)']
+  CLPAYS char(2) [note: 'Pays ISO']
+  CLDTCR numeric(7,0) [note: 'Date de création, CYYMMDD']
+  indexes {
+    (CLSOC, CLCODE) [pk]
+  }
+}
+
+Table ARTICL {
+  ARCODE char(15) [pk, note: 'Code article']
+  ARLIB char(40) [note: 'Libellé']
+  ARFAM char(4) [note: 'Code famille ancien ERP']
+  ARUNIT char(2) [note: 'Unité de vente : PR, PC, BT']
+  ARCOEF numeric(5,0) [note: 'Unités de base par unité de vente']
+  ARSTAT char(1) [note: 'A actif, S supprimé']
+}
+
+Table COUMOI {
+  CMART char(15) [note: 'Code article']
+  CMDTCL numeric(7,0) [note: 'Date de clôture, CYYMMDD']
+  CMCOUT numeric(11,4) [note: 'Coût groupe du mois (CMP), EUR, unité de base']
+  indexes {
+    (CMART, CMDTCL) [pk]
+  }
+}
+
+Table CDEENT {
+  CESOC char(3) [note: 'Société']
+  CENUM numeric(7,0) [note: 'Numéro de commande']
+  CECLI char(8) [note: 'Code client']
+  CEDTCD numeric(7,0) [note: 'Date de commande, CYYMMDD']
+  CEDEV char(3) [note: 'Devise']
+  CEREF char(20) [note: 'Référence client']
+  indexes {
+    (CESOC, CENUM) [pk]
+  }
+}
+
+Table CDELIG {
+  LCSOC char(3) [note: 'Société']
+  LCNUM numeric(7,0) [note: 'Numéro de commande']
+  LCLIG numeric(3,0) [note: 'Numéro de ligne']
+  LCART char(15) [note: 'Code article']
+  LCQTE numeric(11,3) [note: 'Quantité commandée, unité de vente']
+  LCPRIX numeric(11,4) [note: 'Prix unitaire net, devise']
+  LCREM numeric(5,2) [note: 'Remise en %']
+  LCDTDM numeric(7,0) [note: 'Date demandée, CYYMMDD']
+  LCDTPR numeric(7,0) [note: 'Date promise actuelle (écrasée à chaque report)']
+  LCDEPO char(3) [note: 'Site prévu : APT, SHA, DAL, DES, DEM']
+  LCQLIV numeric(11,3) [note: 'Quantité livrée cumulée']
+  LCQANN numeric(11,3) [note: 'Quantité annulée']
+  LCDTAN numeric(7,0) [note: 'Date d annulation, 0 si aucune']
+  LCSTAT char(1) [note: 'O ouverte, S soldée, A annulée']
+  indexes {
+    (LCSOC, LCNUM, LCLIG) [pk]
+  }
+}
+
+Table BLVENT {
+  BESOC char(3) [note: 'Société']
+  BENUM numeric(7,0) [note: 'Numéro de bon de livraison']
+  BECLI char(8) [note: 'Client livré']
+  BEDEPO char(3) [note: 'Site d expédition : APT, SHA, DAL, DES, DEM']
+  BEDTEX numeric(7,0) [note: 'Date d expédition, CYYMMDD']
+  BETRAN char(10) [note: 'Transporteur']
+  indexes {
+    (BESOC, BENUM) [pk]
+  }
+}
+
+Table BLVLIG {
+  BLSOC char(3) [note: 'Société']
+  BLNUM numeric(7,0) [note: 'Numéro de bon de livraison']
+  BLLIG numeric(3,0) [note: 'Ligne du bon']
+  BLCDE numeric(7,0) [note: 'Commande livrée']
+  BLCLIG numeric(3,0) [note: 'Ligne de commande livrée']
+  BLART char(15) [note: 'Code article']
+  BLQTE numeric(11,3) [note: 'Quantité expédiée, unité de vente']
+  indexes {
+    (BLSOC, BLNUM, BLLIG) [pk]
+  }
+}
+
+Table FACENT {
+  FESOC char(3) [note: 'Société']
+  FENUM numeric(7,0) [note: 'Numéro de facture ou d avoir']
+  FETYPE char(1) [note: 'F facture, A avoir']
+  FECLI char(8) [note: 'Client facturé']
+  FEDTFA numeric(7,0) [note: 'Date de facture, CYYMMDD']
+  FEDEV char(3) [note: 'Devise']
+  FEORIG numeric(7,0) [note: 'Facture d origine (avoir), 0 sinon']
+  FEMOTI char(3) [note: 'Motif d avoir : RET, RIS, PRX']
+  indexes {
+    (FESOC, FENUM) [pk]
+  }
+}
+
+Table FACLIG {
+  FLSOC char(3) [note: 'Société']
+  FLNUM numeric(7,0) [note: 'Numéro de facture ou d avoir']
+  FLLIG numeric(3,0) [note: 'Numéro de ligne']
+  FLBL numeric(7,0) [note: 'Bon de livraison facturé, 0 si aucun']
+  FLBLLG numeric(3,0) [note: 'Ligne du bon facturée']
+  FLART char(15) [note: 'Code article']
+  FLQTE numeric(11,3) [note: 'Quantité, toujours positive']
+  FLMTHT numeric(13,2) [note: 'Montant HT en devise, toujours positif']
+  FLPRV numeric(11,4) [note: 'Prix de revient de la société, jamais utilisé']
+  indexes {
+    (FLSOC, FLNUM, FLLIG) [pk]
+  }
+}
+
+Table STKMOI {
+  SMDEPO char(3) [note: 'Plateforme : APT, SHA']
+  SMART char(15) [note: 'Code article']
+  SMDTCL numeric(7,0) [note: 'Date de clôture, CYYMMDD']
+  SMQTE numeric(13,3) [note: 'Quantité, unité de base']
+  indexes {
+    (SMDEPO, SMART, SMDTCL) [pk]
+  }
+}
+
+Ref: CLIENT.CLSOC > SOCIET.SOSOC
+Ref: CDEENT.(CESOC, CECLI) > CLIENT.(CLSOC, CLCODE)
+Ref: CDELIG.(LCSOC, LCNUM) > CDEENT.(CESOC, CENUM)
+Ref: CDELIG.LCART > ARTICL.ARCODE
+Ref: BLVENT.(BESOC, BECLI) > CLIENT.(CLSOC, CLCODE)
+Ref: BLVLIG.(BLSOC, BLNUM) > BLVENT.(BESOC, BENUM)
+Ref: BLVLIG.(BLSOC, BLCDE, BLCLIG) > CDELIG.(LCSOC, LCNUM, LCLIG)
+Ref: FACENT.(FESOC, FECLI) > CLIENT.(CLSOC, CLCODE)
+Ref: FACLIG.(FLSOC, FLNUM) > FACENT.(FESOC, FENUM)
+Ref: FACLIG.(FLSOC, FLBL, FLBLLG) > BLVLIG.(BLSOC, BLNUM, BLLIG)
+Ref: COUMOI.CMART > ARTICL.ARCODE
+Ref: STKMOI.SMART > ARTICL.ARCODE

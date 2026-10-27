@@ -60,14 +60,19 @@ Les mots varient d'une entreprise à l'autre (« hub », « centre de distributi
 
 Conséquence à savoir expliquer : l'effet de change des Émirats est en réalité un effet dollar. Les taux sont les taux réels de la BCE : l'effet de change de 2025 apparaît de lui-même.
 
-## 4. Les plateformes
+## 4. Les sites d'expédition
 
-| `warehouse_id` | Plateforme | Entité |
-| --- | --- | --- |
-| FR-APT | Apt | FR |
-| CN-SHA | Shanghai | CN |
+| `warehouse_id` | Site | Entité | Plateforme | Stock suivi |
+| --- | --- | --- | --- | --- |
+| FR-APT | Plateforme d'Apt | FR | oui | oui |
+| CN-SHA | Plateforme de Shanghai | CN | oui | oui |
+| DE-DEP | Dépôt local Allemagne | DE | non | non |
+| ES-DEP | Dépôt local Espagne | ES | non | non |
+| AE-DEP | Dépôt local Émirats (Sharjah) | AE | non | non |
 
-Ce sont les seuls stocks suivis (voir le document 01). Delta Plus a une plateforme à Apt et un entrepôt en Chine près de Shanghai *(Delta Plus)* ; le groupe réel a d'autres plateformes en Europe, que le projet ne reproduit pas.
+**Les plateformes** approvisionnent le groupe : ce sont les seuls stocks suivis (voir le document 01). Delta Plus a une plateforme à Apt et un entrepôt en Chine près de Shanghai *(Delta Plus)* ; le groupe réel a d'autres plateformes en Europe, que le projet ne reproduit pas.
+
+**Les dépôts locaux** des filiales commerciales reçoivent la marchandise de leur plateforme, puis expédient aux clients de leur pays *(hypothèse, pratique courante d'un réseau de filiales de distribution)*. Ils existent comme sites d'expédition, pour l'OTIF et les délais, mais leur stock n'est pas suivi : c'est l'extension « stock dans chaque filiale » du document 01. Le flux physique d'une paire de gants vendue en Espagne est donc : usine → plateforme d'Apt (vente interne de la France à l'Espagne) → dépôt local espagnol → distributeur espagnol. Seule la ville de Sharjah est appuyée par une source (le siège de la filiale des Émirats, en zone franche) ; les autres dépôts n'ont pas de ville. Le Brésil garde ses propres outils : pas de site dans le référentiel.
 
 ## 5. Les gammes et les familles
 

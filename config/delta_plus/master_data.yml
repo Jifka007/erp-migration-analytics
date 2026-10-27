@@ -135,21 +135,51 @@ currencies:
     usd_peg_rate: 3.6725              # 1 USD = 3,6725 AED depuis 1997
 
 # -------------------------------------------------------------------
-# Plateformes logistiques : seuls stocks suivis
+# Sites d'expédition. Les plateformes approvisionnent le groupe et sont
+# les seuls stocks suivis ; les dépôts locaux des filiales commerciales
+# expédient à leurs clients, sans stock suivi (extension).
 # -------------------------------------------------------------------
 warehouses:
   - warehouse_id: FR-APT
     warehouse_name: Plateforme d'Apt
     entity_id: FR
+    is_platform: true
+    is_stock_tracked: true
     city_name: Apt
     country_code: FR
     country_name: France
   - warehouse_id: CN-SHA
     warehouse_name: Plateforme de Shanghai
     entity_id: CN
+    is_platform: true
+    is_stock_tracked: true
     city_name: Shanghai
     country_code: CN
     country_name: Chine
+  - warehouse_id: DE-DEP
+    warehouse_name: Dépôt local Allemagne
+    entity_id: DE
+    is_platform: false
+    is_stock_tracked: false
+    city_name: null
+    country_code: DE
+    country_name: Allemagne
+  - warehouse_id: ES-DEP
+    warehouse_name: Dépôt local Espagne
+    entity_id: ES
+    is_platform: false
+    is_stock_tracked: false
+    city_name: null
+    country_code: ES
+    country_name: Espagne
+  - warehouse_id: AE-DEP
+    warehouse_name: Dépôt local Émirats
+    entity_id: AE
+    is_platform: false
+    is_stock_tracked: false
+    city_name: Sharjah
+    country_code: AE
+    country_name: Émirats arabes unis
 
 # -------------------------------------------------------------------
 # Gammes et familles d'articles
