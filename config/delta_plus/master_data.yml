@@ -1,0 +1,300 @@
+# Référentiel maître du groupe fictif, calibré sur Delta Plus.
+# Documentation et sources de chaque choix : docs/02_reference_data.md
+# Ce fichier est la « vérité » commune : chaque source (ancien ERP, M3,
+# fichier brésilien, CRM) en tire sa propre version, avec ses propres codes.
+# Il ne contient aucune histoire cachée : celles-ci sont dans defects.yml.
+
+project:
+  history_start_date: 2024-01-01
+  history_end_date: 2026-09-30
+  group_currency_code: EUR
+
+# -------------------------------------------------------------------
+# Échelle. Le groupe complet (scale_factor = 1) reproduit l'ordre de
+# grandeur de Delta Plus. Le générateur tire un échantillon de clients :
+# scale_factor = 0.1 garde 10 % des clients, donc environ 10 % du CA.
+# Le catalogue ne change pas avec l'échelle, et les histoires cachées
+# sont exprimées en pourcentages : les conclusions sont les mêmes à
+# toutes les échelles. Développement au 1/10e, test de charge au 1/1.
+# -------------------------------------------------------------------
+scale:
+  scale_factor: 0.1
+  full_scale_annual_revenue_eur: 389600000   # CA 2025 de Delta Plus
+
+# -------------------------------------------------------------------
+# Migration ERP
+# -------------------------------------------------------------------
+migration:
+  cutover_date: 2026-04-07           # bascule de la première vague vers M3
+  outage_start_date: 2026-03-26      # interruption avant la bascule
+
+# -------------------------------------------------------------------
+# Entités (filiales). entity_id = la « société » des ERP (CONO dans M3).
+# is_platform        : approvisionne d'autres entités du groupe
+# has_external_sales : vend à des clients extérieurs
+# -------------------------------------------------------------------
+entities:
+  - entity_id: FR
+    entity_name: Delta France
+    country_code: FR
+    zone: europe
+    currency_code: EUR
+    is_platform: true
+    has_external_sales: true
+    supplying_warehouse_id: FR-APT
+    source_system_before_cutover: legacy_erp
+    source_system_after_cutover: m3
+    consolidation_start_date: 2024-01-01
+    revenue_share: 0.28
+
+  - entity_id: DE
+    entity_name: Delta Deutschland
+    country_code: DE
+    zone: europe
+    currency_code: EUR
+    is_platform: false
+    has_external_sales: true
+    supplying_warehouse_id: FR-APT
+    source_system_before_cutover: legacy_erp
+    source_system_after_cutover: m3
+    consolidation_start_date: 2024-01-01
+    revenue_share: 0.12
+
+  - entity_id: ES
+    entity_name: Delta España
+    country_code: ES
+    zone: europe
+    currency_code: EUR
+    is_platform: false
+    has_external_sales: true
+    supplying_warehouse_id: FR-APT
+    source_system_before_cutover: legacy_erp
+    source_system_after_cutover: legacy_erp
+    consolidation_start_date: 2024-01-01
+    revenue_share: 0.10
+
+  - entity_id: CN
+    entity_name: Delta China
+    country_code: CN
+    zone: outside_europe
+    currency_code: CNY
+    is_platform: true
+    has_external_sales: true          # hypothèse : ventes locales en Chine
+    supplying_warehouse_id: CN-SHA
+    source_system_before_cutover: legacy_erp
+    source_system_after_cutover: legacy_erp
+    consolidation_start_date: 2024-01-01
+    revenue_share: 0.22
+
+  - entity_id: AE
+    entity_name: Delta Middle East
+    country_code: AE
+    zone: outside_europe
+    currency_code: AED
+    is_platform: false
+    has_external_sales: true
+    supplying_warehouse_id: CN-SHA    # hypothèse
+    source_system_before_cutover: legacy_erp
+    source_system_after_cutover: legacy_erp
+    consolidation_start_date: 2024-01-01
+    revenue_share: 0.18
+
+  - entity_id: BR
+    entity_name: Delta Brasil
+    country_code: BR
+    zone: outside_europe
+    currency_code: BRL
+    is_platform: false
+    has_external_sales: true
+    supplying_warehouse_id: null      # outils propres, stock non suivi
+    source_system_before_cutover: brazil_file
+    source_system_after_cutover: brazil_file
+    consolidation_start_date: 2026-01-01   # acquise au 1er janvier 2026
+    revenue_share: 0.10               # part de son année pleine dans le groupe
+
+# -------------------------------------------------------------------
+# Devises : d'où vient le taux EUR -> devise
+# -------------------------------------------------------------------
+currencies:
+  - currency_code: EUR
+    fx_method: none
+  - currency_code: CNY
+    fx_method: ecb_direct
+  - currency_code: BRL
+    fx_method: ecb_direct
+  - currency_code: USD
+    fx_method: ecb_direct
+  - currency_code: AED
+    fx_method: cross_via_usd          # absent des taux BCE, arrimé au dollar
+    usd_peg_rate: 3.6725              # 1 USD = 3,6725 AED depuis 1997
+
+# -------------------------------------------------------------------
+# Plateformes logistiques : seuls stocks suivis
+# -------------------------------------------------------------------
+warehouses:
+  - warehouse_id: FR-APT
+    warehouse_name: Plateforme d'Apt
+    entity_id: FR
+    country_code: FR
+  - warehouse_id: CN-SHA
+    warehouse_name: Plateforme de Shanghai
+    entity_id: CN
+    country_code: CN
+
+# -------------------------------------------------------------------
+# Gammes et familles d'articles
+# Un article = un modèle, sans taille (la taille est une extension).
+# sourcing_type      : internal (fabriqué par le groupe) ou external (sous-traité)
+# price_range_eur    : prix de vente distributeur d'un article, en euros
+# cost_ratio         : coût groupe / prix de vente, avant remises
+# seasonality        : none ou winter (pic d'octobre à février)
+# -------------------------------------------------------------------
+product_lines:
+  - product_line_id: FOOT
+    product_line_name: Chaussures de sécurité
+    base_unit: pair
+    revenue_share: 0.50
+    families:
+      - product_family_id: FOOT_LOW
+        product_family_name: Chaussures basses
+        sourcing_type: external       # hypothèse (la gamme est mixte)
+        product_count: 120
+        price_range_eur: [25, 45]
+        cost_ratio: 0.50
+        seasonality: none
+        revenue_share_in_line: 0.40
+      - product_family_id: FOOT_HIGH
+        product_family_name: Chaussures montantes
+        sourcing_type: internal
+        product_count: 100
+        price_range_eur: [35, 70]
+        cost_ratio: 0.40
+        seasonality: none
+        revenue_share_in_line: 0.45
+      - product_family_id: FOOT_BOOT
+        product_family_name: Bottes
+        sourcing_type: internal
+        product_count: 50
+        price_range_eur: [20, 50]
+        cost_ratio: 0.40
+        seasonality: winter
+        revenue_share_in_line: 0.15
+
+  - product_line_id: FALL
+    product_line_name: Antichute
+    base_unit: piece
+    revenue_share: 0.32
+    families:
+      - product_family_id: FALL_HARNESS
+        product_family_name: Harnais et longes
+        sourcing_type: internal
+        product_count: 120
+        price_range_eur: [15, 120]
+        cost_ratio: 0.36
+        seasonality: none
+        revenue_share_in_line: 0.65
+      - product_family_id: FALL_SRL
+        product_family_name: Antichutes à rappel automatique
+        sourcing_type: internal
+        product_count: 60
+        price_range_eur: [150, 600]
+        cost_ratio: 0.36
+        seasonality: none
+        revenue_share_in_line: 0.35
+
+  - product_line_id: HAND
+    product_line_name: Gants de protection
+    base_unit: pair
+    revenue_share: 0.18
+    families:
+      - product_family_id: HAND_GENERAL
+        product_family_name: Gants de manutention
+        sourcing_type: external
+        product_count: 100
+        price_range_eur: [1, 4]
+        cost_ratio: 0.50
+        seasonality: none
+        revenue_share_in_line: 0.45
+      - product_family_id: HAND_CUT
+        product_family_name: Gants anti-coupure
+        sourcing_type: external
+        product_count: 80
+        price_range_eur: [3, 10]
+        cost_ratio: 0.50
+        seasonality: none
+        revenue_share_in_line: 0.35
+      - product_family_id: HAND_THERMAL
+        product_family_name: Gants thermiques
+        sourcing_type: external
+        product_count: 50
+        price_range_eur: [4, 12]
+        cost_ratio: 0.50
+        seasonality: winter
+        revenue_share_in_line: 0.20
+
+# -------------------------------------------------------------------
+# Fournisseurs : deux usines du groupe, des sous-traitants en Asie
+# -------------------------------------------------------------------
+suppliers:
+  - supplier_id: SUP-CN-01
+    supplier_name: Usine du groupe, Chine
+    country_code: CN
+    is_internal: true
+    product_family_ids: [FOOT_HIGH, FOOT_BOOT, FALL_HARNESS, FALL_SRL]
+    delivers_to_warehouse_ids: [CN-SHA, FR-APT]
+  - supplier_id: SUP-IN-01
+    supplier_name: Usine du groupe, Inde
+    country_code: IN
+    is_internal: true
+    product_family_ids: [FOOT_HIGH, FOOT_BOOT]
+    delivers_to_warehouse_ids: [FR-APT]
+  - supplier_id: SUP-EXT-01
+    supplier_name: Sous-traitant chaussures A
+    country_code: VN
+    is_internal: false
+    product_family_ids: [FOOT_LOW]
+    delivers_to_warehouse_ids: [FR-APT, CN-SHA]
+  - supplier_id: SUP-EXT-02
+    supplier_name: Sous-traitant gants A
+    country_code: PK
+    is_internal: false
+    product_family_ids: [HAND_GENERAL]
+    delivers_to_warehouse_ids: [FR-APT, CN-SHA]
+  - supplier_id: SUP-EXT-03
+    supplier_name: Sous-traitant gants B
+    country_code: LK
+    is_internal: false
+    product_family_ids: [HAND_CUT, HAND_THERMAL]
+    delivers_to_warehouse_ids: [CN-SHA, FR-APT]
+
+# -------------------------------------------------------------------
+# Segments clients : les canaux publiés par Delta Plus
+# -------------------------------------------------------------------
+customer_segments:
+  - customer_segment_id: BUILDERS_MERCHANT
+    customer_segment_name: Négoce BTP et agricole
+    revenue_share: 0.55
+  - customer_segment_id: PPE_SPECIALIST
+    customer_segment_name: Distributeur spécialiste EPI
+    revenue_share: 0.27
+  - customer_segment_id: GENERALIST
+    customer_segment_name: Distributeur généraliste
+    revenue_share: 0.09
+  - customer_segment_id: DIY_RETAIL
+    customer_segment_name: Grande surface de bricolage
+    revenue_share: 0.09
+  - customer_segment_id: INTERCOMPANY
+    customer_segment_name: Entité du groupe
+    revenue_share: null               # hors CA consolidé
+
+# Nombre de clients extérieurs par entité, pour le groupe complet
+# (scale_factor = 1). Le générateur en garde scale_factor × ce nombre.
+# Chaque entité est en plus cliente des plateformes qui l'approvisionnent
+# (segment INTERCOMPANY), quelle que soit l'échelle.
+customer_counts_full_scale:
+  FR: 1500
+  DE: 800
+  ES: 600
+  CN: 1000
+  AE: 500
+  BR: 700
