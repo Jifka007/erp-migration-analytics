@@ -8,8 +8,8 @@ Les sources suivent la légende du document [01](01_data_model_and_business_rule
 
 ## 1. Ce qu'on sait de Delta Plus
 
-- **Le métier** : le groupe conçoit, fabrique et distribue des équipements de protection individuelle, « de la tête aux pieds », et de la protection collective depuis 2017. Environ 8 000 références, 18 sites de production, plus de 40 filiales. *(Delta Plus)*
-- **Faire ou acheter** : tout est conçu en interne et vendu sous la marque du groupe, mais seule une partie est fabriquée en interne (environ 45 % du CA en 2021 ; le site du groupe affiche aujourd'hui 85 % de produits fabriqués dans 20 usines, une hausse cohérente avec les usines rachetées depuis, mais non détaillée par gamme). L'antichute est fabriquée à 100 % en interne, la tête à 70-90 %, les chaussures à environ 50-75 % selon les sources ; les gants et les vêtements sont entièrement sous-traités. La logique : garder ce qui est critique pour la sécurité, sous-traiter ce qui demande beaucoup de main-d'œuvre. *(Delta Plus, interviews du dirigeant 2022 et 2023)*
+- **Le métier** : le groupe conçoit, fabrique et distribue des équipements de protection individuelle, « de la tête aux pieds », et de la protection collective depuis 2017. Plus de 1 100 modèles et 7 200 références, plus de 10 000 clients, 18 sites de production, plus de 40 filiales. *(Delta Plus)*
+- **Faire ou acheter** : tout est conçu en interne et vendu sous la marque du groupe, mais seule une partie est fabriquée en interne (62 % de la production selon le document d'enregistrement universel 2025, la source la plus récente et la plus fiable ; environ 45 % du CA en 2021 selon une interview ; le site du groupe affiche 85 % de produits fabriqués dans 20 usines, une hausse cohérente avec les usines rachetées depuis, mais non détaillée par gamme). L'antichute est fabriquée à 100 % en interne, la tête à 70-90 %, les chaussures à environ 50-75 % selon les sources ; les gants et les vêtements sont entièrement sous-traités. La logique : garder ce qui est critique pour la sécurité, sous-traiter ce qui demande beaucoup de main-d'œuvre. *(Delta Plus, interviews du dirigeant 2022 et 2023)*
 - **Les canaux** : le groupe vend à des distributeurs, jamais directement aux utilisateurs. Les distributeurs servent les grands comptes (BTP, industrie, aéronautique). *(Delta Plus)*
 
 ## 2. Les entités
@@ -48,7 +48,7 @@ Les mots varient d'une entreprise à l'autre (« hub », « centre de distributi
 
 **Le poids des entités** (`revenue_share`) : environ 50 % en Europe et 50 % hors Europe *(Delta Plus)* ; le Brésil pèse environ 10 % du groupe, pour reproduire l'effet de périmètre de +10 % publié au S1 2026 *(Delta Plus)*. La répartition fine entre filiales est une *hypothèse*.
 
-**La plateforme qui approvisionne chaque filiale** (`supplying_warehouse_id`) : l'Europe par Apt, les Émirats par la Chine *(hypothèse)*. La filiale des Émirats est installée en zone franche à Sharjah *(Delta Plus)*, un emplacement typique d'un stock de réexportation vers le Golfe ; d'où vient sa marchandise n'est pas public. La Chine est retenue parce qu'elle concentre la production du groupe et qu'elle est plus proche que la France. Le Brésil garde ses propres outils, son stock n'est pas suivi.
+**La plateforme qui approvisionne chaque filiale** (`supplying_warehouse_id`) : l'Europe par Apt, les Émirats par la Chine *(hypothèse)*. La filiale des Émirats est installée en zone franche à Sharjah *(Delta Plus)*, un emplacement typique d'un stock de réexportation vers le Golfe ; d'où vient sa marchandise n'est pas public. La Chine est retenue parce qu'elle concentre la production du groupe et qu'elle est plus proche que la France. Le Brésil garde ses propres outils et son propre entrepôt, non suivis ; mais les références du groupe qu'il revend, il les achète à la plateforme de Shanghai *(hypothèse : la plus proche de l'Amérique latine dans le groupe fictif)*. Ces achats sont des ventes internes de la Chine, visibles dans l'ancien ERP : ils mesurent, avec la part de son CA réalisée en références du groupe, l'intégration de la filiale rachetée (question 5).
 
 ## 3. Les devises
 
@@ -72,7 +72,7 @@ Conséquence à savoir expliquer : l'effet de change des Émirats est en réalit
 
 **Les plateformes** approvisionnent le groupe : ce sont les seuls stocks suivis (voir le document 01). Delta Plus a une plateforme à Apt et un entrepôt en Chine près de Shanghai *(Delta Plus)* ; le groupe réel a d'autres plateformes en Europe, que le projet ne reproduit pas.
 
-**Les dépôts locaux** des filiales commerciales reçoivent la marchandise de leur plateforme, puis expédient aux clients de leur pays *(hypothèse, pratique courante d'un réseau de filiales de distribution)*. Ils existent comme sites d'expédition, pour l'OTIF et les délais, mais leur stock n'est pas suivi : c'est l'extension « stock dans chaque filiale » du document 01. Le flux physique d'une paire de gants vendue en Espagne est donc : usine → plateforme d'Apt (vente interne de la France à l'Espagne) → dépôt local espagnol → distributeur espagnol. Seule la ville de Sharjah est appuyée par une source (le siège de la filiale des Émirats, en zone franche) ; les autres dépôts n'ont pas de ville. Le Brésil garde ses propres outils : pas de site dans le référentiel.
+**Les dépôts locaux** des filiales commerciales reçoivent la marchandise de leur plateforme, puis expédient aux clients de leur pays *(hypothèse, pratique courante d'un réseau de filiales de distribution)*. Ils existent comme sites d'expédition, pour l'OTIF et les délais, mais leur stock n'est pas suivi : c'est l'extension « stock dans chaque filiale » du document 01. Le flux physique d'une paire de gants vendue en Espagne est donc : usine → plateforme d'Apt (vente interne de la France à l'Espagne) → dépôt local espagnol → distributeur espagnol. Seule la ville de Sharjah est appuyée par une source (le siège de la filiale des Émirats, en zone franche) ; les autres dépôts n'ont pas de ville. Le Brésil garde ses propres outils : pas de site dans le référentiel, mais il est client intragroupe de la plateforme de Shanghai pour les références du groupe.
 
 ## 5. Les gammes et les familles
 
@@ -142,7 +142,7 @@ Le nombre de clients extérieurs par entité (`customer_counts_full_scale`, donn
 
 ## 9. L'échelle et les ratios de vraisemblance
 
-**L'échelle est un paramètre** (`scale_factor`). Le groupe complet (`scale_factor` = 1) reproduit l'ordre de grandeur de Delta Plus : environ 390 M€ de CA, 680 modèles, 5 100 clients extérieurs. Le générateur tire un **échantillon de clients** : au 1/10e, il garde 10 % des clients, donc environ 10 % du CA (environ 39 M€ par an, environ 130 000 lignes de commande sur 33 mois). Le catalogue, lui, ne change pas.
+**L'échelle est un paramètre** (`scale_factor`). Le groupe complet (`scale_factor` = 1) reproduit l'ordre de grandeur de Delta Plus : environ 390 M€ de CA, 1 100 modèles, 10 000 clients extérieurs, comme Delta Plus *(document d'enregistrement universel 2025)*. Le générateur tire un **échantillon de clients** : au 1/10e, il garde 10 % des clients, donc environ 10 % du CA (environ 39 M€ par an, environ 130 000 lignes de commande sur 33 mois). Le catalogue, lui, ne change pas.
 
 **Pourquoi le 1/10e par défaut.** Le bruit relatif d'une moyenne baisse comme 1/√n. Au 1/10e, une case d'analyse (famille × filiale × mois) compte environ 80 lignes, assez pour qu'un phénomène sorte du bruit ; au 1/1, environ 800 lignes, pour un gain faible. En revanche, chaque régénération et chaque chargement par Airbyte, sur un ordinateur portable, deviendrait dix fois plus long. Enfin, une échelle visiblement réduite évite toute confusion avec les vrais chiffres de Delta Plus, même si les données sont présentées comme synthétiques. Le 1/1 sert de **test de charge**, une fois la chaîne terminée.
 
@@ -152,8 +152,8 @@ Le nombre de clients extérieurs par entité (`customer_counts_full_scale`, donn
 
 | Ratio | Cible | Source |
 | --- | --- | --- |
-| CA moyen par client extérieur et par an | Environ 76 k€ (390 M€ / 5 100), indépendant de l'échelle | Hypothèse : des distributeurs, du négoce local au grand réseau |
-| CA par modèle, au 1/1 | Environ 570 k€ (390 M€ / 680) | Delta Plus : environ 49 k€ par référence (390 M€ / 8 000), soit environ 500 k€ par modèle décliné en une dizaine de tailles |
+| CA moyen par client extérieur et par an | Environ 39 k€ (390 M€ / 10 000), indépendant de l'échelle | Delta Plus : plus de 10 000 clients pour 390 M€ |
+| CA par modèle, au 1/1 | Environ 350 k€ (390 M€ / 1 100) | Delta Plus : plus de 1 100 modèles pour 390 M€ |
 | Marge brute | 56 à 58 % | Delta Plus |
 | Poids des gammes | Environ 50 / 32 / 18 % | Delta Plus, ramené à trois gammes |
 | Part de l'Europe | Environ 50 % | Delta Plus |

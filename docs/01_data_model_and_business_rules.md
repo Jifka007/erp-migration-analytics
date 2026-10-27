@@ -89,7 +89,7 @@ Le budget ne connaît ni commandes ni articles, seulement la gamme « mains » :
 
 **Le budget a sa propre table**, car il est saisi par filiale, gamme et mois, alors que le chiffre d'affaires est à la ligne de facture. Les deux se comparent au niveau commun (filiale, gamme, mois), grâce aux dimensions partagées `dim_entity`, `dim_product` et `dim_date` (dimensions conformes, au sens de Kimball).
 
-**Le fichier de la filiale brésilienne** contient des lignes de facture, comme un export comptable : il alimente directement `fct_sales_lines`, sans casser le grain. Il ne contient ni commandes, ni expéditions, ni stock : tant qu'elle n'est pas intégrée, la filiale brésilienne compte dans le CA, la marge et la croissance, mais pas dans l'OTIF, le carnet ni le stock. C'est une limite assumée, et un argument pour son intégration.
+**Le fichier de la filiale brésilienne** contient des lignes de facture, comme un export comptable : il alimente directement `fct_sales_lines`, sans casser le grain. Il ne contient ni commandes, ni expéditions, ni stock : tant qu'elle n'est pas intégrée, la filiale brésilienne compte dans le CA, la marge et la croissance, mais pas dans l'OTIF, le carnet ni le stock. C'est une limite assumée, et un argument pour son intégration. En revanche, les références du groupe qu'il revend sont achetées à la plateforme de Shanghai : ces ventes internes, visibles dans l'ancien ERP de la Chine, montrent la part de ses achats faite auprès du groupe, l'autre mesure de son intégration.
 
 **Les règlements clients** (dates d'échéance et de paiement) ne font pas partie des sources du cœur du projet. Le délai de paiement (DSO) est une extension possible.
 

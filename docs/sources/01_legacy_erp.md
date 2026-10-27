@@ -45,12 +45,12 @@ Types : `CHAR(n)` pour le texte de longueur fixe, `NUMERIC(p,s)` pour les nombre
 
 | Colonne | Type | Signification | Nom cible |
 | --- | --- | --- | --- |
-| `SOSOC` | CHAR(3) | Code société dans l'ancien ERP : `010` France, `020` Allemagne, `030` Espagne, `040` Chine, `050` Émirats | `entity_id` (par une table de correspondance) |
+| `SOSOC` | CHAR(3) | Code société dans l'ancien ERP : `010` France, `020` Allemagne, `030` Espagne, `040` Chine, `050` Émirats, `060` Brésil | `entity_id` (par une table de correspondance) |
 | `SONOM` | CHAR(30) | Raison sociale | `entity_name` |
 | `SODEV` | CHAR(3) | Devise de la société (`EUR`, `CNY`, `AED`) | `currency_code` |
 | `SOPAYS` | CHAR(2) | Pays (code ISO) | `country_code` |
 
-Les codes société de l'ancien ERP (`030`) ne sont pas ceux du projet (`ES`) : la correspondance est une table de référence (*seed* dbt), comme dans toute migration.
+Les codes société de l'ancien ERP (`030`) ne sont pas ceux du projet (`ES`) : la correspondance est une table de référence (*seed* dbt), comme dans toute migration. Le Brésil (`060`) est déclaré sans avoir de données propres dans l'ancien ERP : il n'y existe que comme client intragroupe de la Chine, qui lui vend les références du groupe.
 
 ### `CLIENT` : la fiche client
 

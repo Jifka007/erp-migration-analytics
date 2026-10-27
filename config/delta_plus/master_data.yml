@@ -112,7 +112,7 @@ entities:
     currency_code: BRL
     is_platform: false
     has_external_sales: true
-    supplying_warehouse_id: null      # outils propres, stock non suivi
+    supplying_warehouse_id: CN-SHA    # références du groupe seulement ; son propre stock n'est pas suivi
     source_system_before_cutover: brazil_file
     source_system_after_cutover: brazil_file
     consolidation_start_date: 2026-01-01   # acquise au 1er janvier 2026
@@ -198,7 +198,7 @@ product_lines:
       - product_family_id: FOOT_LOW
         product_family_name: Chaussures basses
         sourcing_type: external       # hypothèse (la gamme est mixte)
-        product_count: 120
+        product_count: 190
         price_range_eur: [25, 45]
         cost_ratio: 0.50
         seasonality: none
@@ -206,7 +206,7 @@ product_lines:
       - product_family_id: FOOT_HIGH
         product_family_name: Chaussures montantes
         sourcing_type: internal
-        product_count: 100
+        product_count: 160
         price_range_eur: [35, 70]
         cost_ratio: 0.40
         seasonality: none
@@ -214,7 +214,7 @@ product_lines:
       - product_family_id: FOOT_BOOT
         product_family_name: Bottes
         sourcing_type: internal
-        product_count: 50
+        product_count: 80
         price_range_eur: [20, 50]
         cost_ratio: 0.40
         seasonality: winter
@@ -228,7 +228,7 @@ product_lines:
       - product_family_id: FALL_HARNESS
         product_family_name: Harnais et longes
         sourcing_type: internal
-        product_count: 120
+        product_count: 190
         price_range_eur: [15, 120]
         cost_ratio: 0.36
         seasonality: none
@@ -236,7 +236,7 @@ product_lines:
       - product_family_id: FALL_SRL
         product_family_name: Antichutes à rappel automatique
         sourcing_type: internal
-        product_count: 60
+        product_count: 100
         price_range_eur: [150, 600]
         cost_ratio: 0.36
         seasonality: none
@@ -250,7 +250,7 @@ product_lines:
       - product_family_id: HAND_GENERAL
         product_family_name: Gants de manutention
         sourcing_type: external
-        product_count: 100
+        product_count: 160
         price_range_eur: [1, 4]
         cost_ratio: 0.50
         seasonality: none
@@ -258,7 +258,7 @@ product_lines:
       - product_family_id: HAND_CUT
         product_family_name: Gants anti-coupure
         sourcing_type: external
-        product_count: 80
+        product_count: 130
         price_range_eur: [3, 10]
         cost_ratio: 0.50
         seasonality: none
@@ -266,7 +266,7 @@ product_lines:
       - product_family_id: HAND_THERMAL
         product_family_name: Gants thermiques
         sourcing_type: external
-        product_count: 50
+        product_count: 90
         price_range_eur: [4, 12]
         cost_ratio: 0.50
         seasonality: winter
@@ -332,9 +332,9 @@ customer_segments:
 # Chaque entité est en plus cliente des plateformes qui l'approvisionnent
 # (segment INTERCOMPANY), quelle que soit l'échelle.
 customer_counts_full_scale:
-  FR: 1500
-  DE: 800
-  ES: 600
-  CN: 1000
-  AE: 500
-  BR: 700
+  FR: 3000
+  DE: 1600
+  ES: 1200
+  CN: 2000
+  AE: 1000
+  BR: 1200

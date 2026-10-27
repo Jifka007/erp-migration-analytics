@@ -8,7 +8,7 @@ Project legacy_erp {
 }
 
 Table SOCIET {
-  SOSOC char(3) [pk, note: 'Code société (010 FR, 020 DE, 030 ES, 040 CN, 050 AE)']
+  SOSOC char(3) [pk, note: 'Code société (010 FR, 020 DE, 030 ES, 040 CN, 050 AE, 060 BR client intragroupe seulement)']
   SONOM char(30) [note: 'Raison sociale']
   SODEV char(3) [note: 'Devise']
   SOPAYS char(2) [note: 'Pays ISO']
