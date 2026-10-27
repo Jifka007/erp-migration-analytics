@@ -16,7 +16,7 @@ Un bon nom dit ce que contient l'objet, sans avoir à l'ouvrir. Les règles ci-d
 | Règle | Exemple |
 | --- | --- |
 | Préfixe à deux chiffres pour l'ordre de lecture, puis le sujet | `01_data_model_and_business_rules.md` |
-| Sous-dossier par famille, numéroté de la même façon | `docs/sources/01_legacy_erp.md` |
+| Sous-dossier par famille, numéroté de la même façon ; dans `docs/sources/`, un document par source, nommé comme la source (section 4) | `docs/sources/01_legacy_erp.md`, `docs/sources/02_m3.md` |
 | Titre en français en première ligne, puis une ligne en italique indiquant la phase de rédaction | `# Modèle de données et règles métier` |
 | Un sommaire, `docs/README.md`, liste les documents dans l'ordre avec une phrase sur chacun | — |
 

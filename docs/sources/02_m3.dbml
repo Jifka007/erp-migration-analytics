@@ -1,5 +1,5 @@
 // Export de type Infor M3 : schéma relationnel (à coller dans dbdiagram.io)
-// Documentation : docs/sources/02_m3_export.md
+// Documentation : docs/sources/02_m3.md
 // Tables vérifiées dans le modèle de données de M3 ; champs inspirés de M3 sauf mention (verifie).
 
 Project m3_export {

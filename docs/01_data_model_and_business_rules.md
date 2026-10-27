@@ -263,9 +263,10 @@ Pour que les conclusions ne soient pas circulaires, je ne connais pas les histoi
 | `docs/01_data_model_and_business_rules.md` | Ce document |
 | `docs/02_reference_data.md` et `config/delta_plus/master_data.yml` | Le référentiel maître du groupe fictif |
 | `docs/sources/01_legacy_erp.md` et `01_legacy_erp.dbml` | Tables et colonnes de l'ancien ERP, avec leur schéma relationnel |
-| `docs/sources/02_m3_export.md` et `02_m3_export.dbml` | Tables de l'export de type M3 et correspondance avec les objets métier |
+| `docs/sources/02_m3.md` et `02_m3.dbml` | Tables de l'export de type M3 et correspondance avec les objets métier |
 | `docs/sources/03_crm.md` | Structure du document compte du CRM et un exemple JSON |
-| `docs/sources/04_spreadsheets.md` | Mise en page du fichier brésilien et du budget |
+| `docs/sources/04_brazil_file.md` | Mise en page du fichier de la filiale brésilienne |
+| `docs/sources/05_budget.md` | Mise en page du budget saisi par la finance |
 | `config/delta_plus/defects.yml` | Les types d'effets et les défauts à injecter |
 
 ## 8. Idées pour plus tard
