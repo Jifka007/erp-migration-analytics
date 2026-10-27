@@ -99,7 +99,7 @@ C'est la seule source du coût utilisé pour la marge et la valeur du stock (doc
 | `CECLI` | CHAR(8) | Code client | `customer_code` |
 | `CEDTCD` | NUMERIC(7,0) | Date de commande | `order_date` |
 | `CEDEV` | CHAR(3) | Devise de la commande | `currency_code` |
-| `CEREF` | CHAR(20) | Référence de commande du client | `customer_reference` |
+| `CEREF` | CHAR(20) | Référence de commande du client (non utilisée dans le cœur, gardée pour le réalisme) | `customer_reference` |
 
 ### `CDELIG` : les lignes de commande
 
@@ -118,9 +118,9 @@ C'est la seule source du coût utilisé pour la marge et la valeur du stock (doc
 | `LCQLIV` | NUMERIC(11,3) | Quantité déjà livrée, cumulée | sert de contrôle |
 | `LCQANN` | NUMERIC(11,3) | Quantité annulée | `cancelled_quantity` |
 | `LCDTAN` | NUMERIC(7,0) | Date d'annulation ; `0` si aucune | `cancelled_date` |
-| `LCSTAT` | CHAR(1) | `O` ouverte, `S` soldée, `A` annulée | `order_line_status` |
+| `LCSTAT` | CHAR(1) | `O` ouverte, `S` soldée, `A` annulée, `M` migrée vers M3 (voir la section 5) | `order_line_status` |
 
-**La première date promise n'existe pas dans l'ancien ERP.** Un report écrase `LCDTPR`. Conséquence pour l'OTIF : voir la section 5.
+**La première date promise n'existe pas dans l'ancien ERP.** Un report écrase `LCDTPR`. Conséquence pour l'OTIF : voir la section 6.
 
 ### `BLVENT` : les en-têtes de bon de livraison
 
@@ -131,7 +131,7 @@ C'est la seule source du coût utilisé pour la marge et la valeur du stock (doc
 | `BECLI` | CHAR(8) | Client livré | `customer_code` |
 | `BEDEPO` | CHAR(3) | Site d'expédition (mêmes codes que `LCDEPO`) | `warehouse_id` (par correspondance) |
 | `BEDTEX` | NUMERIC(7,0) | Date d'expédition | `shipped_date` |
-| `BETRAN` | CHAR(10) | Code transporteur | `carrier_code` |
+| `BETRAN` | CHAR(10) | Code transporteur (non utilisé dans le cœur ; servirait à l'OTIF à la réception, en extension) | `carrier_code` |
 
 ### `BLVLIG` : les lignes de bon de livraison
 
@@ -233,7 +233,15 @@ L'avoir 5077 a un montant positif : c'est `FETYPE = 'A'` qui le rend négatif da
 
 **Ce que la staging devra faire** pour passer de ces tables à nos tables de faits : traduire les noms, convertir les dates `CYYMMDD`, retirer les espaces des codes, remplacer les codes société, dépôt, famille et segment par ceux du projet, convertir les quantités en unité de base, signer les avoirs, et joindre les lignes à leurs en-têtes sur la société **et** le numéro.
 
-## 5. La conséquence pour l'OTIF
+## 5. La bascule, vue depuis l'ancien ERP
+
+Le 7 avril 2026, les sociétés `010` (France) et `020` (Allemagne) cessent d'être saisies dans l'ancien ERP, qui reste en lecture.
+
+- **Les lignes de commande encore ouvertes sont recréées dans M3**, pour leur seule quantité restant à livrer. Dans l'ancien ERP, elles passent au statut `M` (migrée) : la quantité restante n'est ni livrée ni annulée, elle est partie dans l'autre système. Ces lignes sortent du carnet de l'ancien ERP le 6 avril au soir et y entrent dans M3 le 7 : compter le reste de la ligne comme une annulation gonflerait les annulations, et le garder ouvert compterait le carnet deux fois. L'OTIF de ces lignes se mesure sur leur version M3 (voir le document de M3, section 5).
+- **Le stock d'Apt** s'arrête dans l'ancien ERP à la clôture de mars 2026 (`STKMOI`) ; la suite vient des mouvements de M3. La continuité de la série d'Apt, comme la date de dernière sortie d'un article, passe par la correspondance des articles entre les deux systèmes (`map_products`).
+- **Les autres sociétés** (Espagne, Chine, Émirats) continuent dans l'ancien ERP. Leurs achats à la plateforme d'Apt deviennent des ventes de la division `FRA` dans M3, et leurs fiches client « intragroupe » côté France n'existent plus que dans M3.
+
+## 6. La conséquence pour l'OTIF
 
 L'ancien ERP ne garde que la dernière date promise, alors que M3 garde les versions successives d'une ligne de commande et donc la première promesse. Si l'on mesurait l'OTIF sur la dernière promesse avant la bascule, puis sur la première après, l'OTIF de la France et de l'Allemagne chuterait le 7 avril sans que le service ait changé : seule la règle de mesure aurait changé. Le projet calcule donc deux OTIF (document 01, section 2) :
 
@@ -242,7 +250,7 @@ L'ancien ERP ne garde que la dernière date promise, alors que M3 garde les vers
 
 Un *snapshot* dbt quotidien des lignes de commande ouvertes de l'ancien ERP permet, à partir de sa mise en place, de garder la première promesse pour les entités restées sur l'ancien système.
 
-## 6. Ce qui n'est pas dans ce document
+## 7. Ce qui n'est pas dans ce document
 
 - Les défauts injectés dans les données (doublons, codes manquants, lignes orphelines, fiches client mal typées) : tâche 1.6, `config/delta_plus/defects.yml`.
 - Les commandes ouvertes recréées dans M3 à la bascule, et leur rapprochement : document 01, section 4.

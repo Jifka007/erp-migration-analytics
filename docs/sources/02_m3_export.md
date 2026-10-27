@@ -96,7 +96,7 @@ Les quantités de M3 sont toutes en unité de base : la conversion des boîtes d
 | `OAORDT` | NUMERIC(8,0) | Date de commande | `order_date` |
 | `OARLDT` ✓ | NUMERIC(8,0) | Date demandée, au niveau de l'en-tête | `requested_date` si la ligne n'en a pas |
 | `OACUCD` | VARCHAR(3) | Devise | `currency_code` |
-| `OAORTP` | VARCHAR(3) | Type de commande : `C01` vente, `R01` retour | — |
+| `OAORTP` | VARCHAR(3) | Type de commande : `C01` vente, `R01` retour | `order_type` ; les commandes de retour sont exclues des prises de commandes, du carnet et de l'OTIF (elles ne servent qu'à produire un avoir) |
 | `OAYREF` | VARCHAR(30) | Pour une commande reprise à la bascule : le numéro de la commande dans l'ancien ERP ; parfois vide | sert à `map_transactions` |
 
 ### `OOLINE` : les lignes de commande, état actuel
@@ -160,7 +160,7 @@ Chaque modification d'une ligne (date confirmée, quantité, statut) crée une v
 | `UAIVDT` | NUMERIC(8,0) | Date de facture | `invoice_date` |
 | `UACUNO` | VARCHAR(10) | Client facturé | `customer_code` |
 | `UACUCD` | VARCHAR(3) | Devise | `currency_code` |
-| `UAOIVN` | NUMERIC(10,0) | Pour un avoir : la facture d'origine ; `0` sinon | `original_invoice_number` |
+| `UAOIVN` | NUMERIC(10,0) | Pour un avoir : la facture d'origine ; `0` sinon. Pour un retour après la bascule, la facture d'origine peut être dans l'ancien ERP : le lien se résout alors avec `source_system = legacy_erp` | `original_invoice_number` |
 | `UACRTP` | VARCHAR(3) | Pour un avoir : `RET` retour, `RIS` ristourne, `PRX` erreur de prix | `credit_note_type` |
 | `UBCONO` | NUMERIC(3,0) | Société | — |
 | `UBDIVI` | VARCHAR(3) | Division | `entity_id` |
@@ -198,6 +198,8 @@ La ligne de facture se rattache à la ligne de commande et à la livraison par l
 
 - le stock reconstruit à la date de l'export doit être égal à `MBSTQT` ;
 - les mouvements de reprise (type `90`) doivent être égaux au stock d'Apt de la clôture de mars 2026 dans l'ancien ERP (`STKMOI`) : c'est la réconciliation du stock à la bascule.
+
+**La continuité avec l'ancien ERP.** Jusqu'à mars 2026, le stock d'Apt vient de la clôture mensuelle de l'ancien ERP (`STKMOI`), avec ses codes articles ; à partir d'avril, il vient des mouvements de M3, avec les nouveaux codes. La série mensuelle d'un article, sa date de dernière sortie (qui peut dater d'avant la bascule) et son coût groupe (`COUMOI`, tenu avec les codes de l'ancien ERP) passent tous par `map_products`. Un article de M3 sans correspondance n'a ni historique ni coût : il est signalé sur la page qualité, et sa marge et sa valeur de stock ne sont pas calculées en silence.
 
 Seul l'entrepôt `APT` alimente `fct_stock_snapshots` : le dépôt allemand `DEP` existe pour les expéditions, mais son stock n'est pas suivi (document 02, section 4).
 
