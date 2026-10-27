@@ -23,6 +23,23 @@ Les sources suivent la légende du document [01](01_data_model_and_business_rule
 | AE | Émirats arabes unis | Hors Europe | AED | non | oui | `legacy_erp` / `legacy_erp` | début de l'historique |
 | BR | Brésil | Hors Europe | BRL | non | oui | `brazil_file` | 1er janvier 2026 |
 
+**Une entité est une société, un site est un lieu.** Une entité est une société juridique : elle a ses comptes, sa devise, ses factures, et c'est la « société » de l'ERP (`CONO` dans M3) ; elle se lit sur l'axe `dim_entity`. Un site est un lieu physique (un entrepôt, une usine) qui appartient à une entité ; les plateformes se lisent sur l'axe `dim_warehouse`. La France est une entité (`FR`), Apt est son site (`FR-APT`).
+
+**Les types d'entités.** Ce ne sont pas des cases exclusives : ils se cumulent, d'où les deux booléens plutôt qu'un rôle unique.
+
+| Type | Définition | Ce que ça recouvre dans les données | Dans le groupe fictif |
+| --- | --- | --- | --- |
+| Filiale | Toute société détenue par le groupe ; terme général qui couvre les types suivants | Une ligne de `dim_entity`, avec sa devise et son système source | Les 6 entités |
+| Filiale commerciale (ou de distribution) | Achète au groupe et revend à des clients de son pays ; ne fabrique pas et n'approvisionne personne | Ventes extérieures, commandes, budget ; ses achats internes ne sont vus que côté vendeur ; stock non suivi | Allemagne, Espagne, Émirats, Brésil |
+| Plateforme (logistique) | Entrepôt central qui reçoit des usines et des fournisseurs, stocke et redistribue aux filiales | Ventes internes, stock mensuel, sorties, couverture, dépréciation | Apt (France) et Shanghai (Chine) |
+| Entité mixte | Porte une plateforme et vend aussi à ses propres clients | Les deux activités, chacune jugée avec ses indicateurs (document 01, section 2) | France, Chine |
+| Plateforme pure | Ne vend qu'aux autres entités | CA consolidé nul, vue logistique seulement | Aucune (cas théorique) |
+| Base amont (usine) | Fabrique ou achète en Asie et expédie vers les plateformes, sans vendre aux clients | Un fournisseur interne (`is_internal: true`) : on sait seulement quelles familles en viennent | Inde, et l'usine chinoise |
+| Entité acquise | Filiale entrée dans le périmètre en cours de période | Sa date d'entrée (`consolidation_start_date`) alimente l'effet de périmètre et la croissance organique | Brésil (1er janvier 2026) |
+| Siège (société mère) | Détient les filiales et publie les comptes consolidés | Pas une entité dans les données : c'est le point de vue du groupe, la somme des contributions | Delta Plus Group, à Apt |
+
+Les mots varient d'une entreprise à l'autre (« hub », « centre de distribution » pour une plateforme) ; Delta Plus parle de « plateformes » et de « bases amont ». Enfin, une entité porte aussi son système source : l'Espagne et l'Allemagne sont deux filiales commerciales, mais l'une est restée sur l'ancien ERP et l'autre est passée sur M3. Pour la migration, cet attribut compte autant que le type.
+
 **Le pays en clair.** Chaque entité porte son code pays (`country_code`, norme ISO) et son nom en français (`country_name`), pour que les rapports restent lisibles sans table de correspondance. La ville n'est donnée que pour les plateformes (Apt, Shanghai), seules villes appuyées par une source ; pour les filiales commerciales, le pays suffit.
 
 **Deux booléens plutôt qu'un rôle.** Une entité peut approvisionner d'autres filiales (`is_platform`) et vendre à des clients extérieurs (`has_external_sales`) : ce ne sont pas deux catégories exclusives. Apt est à la fois siège, plateforme logistique et entité qui vend en France *(Delta Plus)*. Les ventes locales de la Chine sont une *hypothèse*. Un rôle unique (« plateforme » ou « commerciale ») aurait été faux pour la France ; Delta Plus ne publie d'ailleurs pas une telle distinction.
