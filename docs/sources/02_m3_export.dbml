@@ -1,0 +1,159 @@
+// Export de type Infor M3 : schéma relationnel (à coller dans dbdiagram.io)
+// Documentation : docs/sources/02_m3_export.md
+// Tables vérifiées dans le modèle de données de M3 ; champs inspirés de M3 sauf mention (verifie).
+
+Project m3_export {
+  database_type: 'PostgreSQL'
+  Note: 'Export de type Infor M3 (réplication en tables). Société CONO 100, divisions FRA et DEU. Dates YYYYMMDD.'
+}
+
+Table OCUSMA {
+  OKCONO numeric(3,0)
+  OKCUNO varchar(10) [note: 'Numéro client M3']
+  OKCUNM varchar(36) [note: 'Raison sociale']
+  OKCUTP numeric(1,0) [note: '0 extérieur, 1 interne']
+  OKDIVI varchar(3) [note: 'Division propriétaire']
+  OKIDIV varchar(3) [note: 'Entité représentée (client interne)']
+  OKCUCL varchar(3) [note: 'Catégorie : NEG, SPE, GEN, GSB']
+  OKCSCD varchar(3) [note: 'Pays']
+  OKOLDC varchar(10) [note: 'Ancien code client, parfois vide']
+  indexes { (OKCONO, OKCUNO) [pk] }
+}
+
+Table MITMAS {
+  MMCONO numeric(3,0)
+  MMITNO varchar(15) [note: 'Numéro article M3']
+  MMITDS varchar(30) [note: 'Libellé']
+  MMITGR varchar(5) [note: 'Groupe d articles (famille)']
+  MMUNMS varchar(3) [note: 'Unité de base : PAR, PCE']
+  MMSTAT varchar(2) [note: '20 actif, 90 bloqué']
+  MMOLDI varchar(15) [note: 'Ancien code article, parfois vide']
+  indexes { (MMCONO, MMITNO) [pk] }
+}
+
+Table OOHEAD {
+  OACONO numeric(3,0)
+  OADIVI varchar(3) [note: 'Division (entité juridique)']
+  OAORNO varchar(10) [note: 'Numéro de commande']
+  OACUNO varchar(10) [note: 'Client']
+  OAORDT numeric(8,0) [note: 'Date de commande']
+  OARLDT numeric(8,0) [note: 'Date demandée, en-tête (verifie)']
+  OACUCD varchar(3) [note: 'Devise']
+  OAORTP varchar(3) [note: 'C01 vente, R01 retour']
+  OAYREF varchar(30) [note: 'Ancien numéro de commande (reprise), parfois vide']
+  indexes { (OACONO, OAORNO) [pk] }
+}
+
+Table OOLINE {
+  OBCONO numeric(3,0)
+  OBDIVI varchar(3)
+  OBORNO varchar(10)
+  OBPONR numeric(5,0) [note: 'Ligne']
+  OBPOSX numeric(2,0) [note: 'Sous-ligne (verifie)']
+  OBITNO varchar(15)
+  OBWHLO varchar(3) [note: 'APT ou DEP']
+  OBORQT numeric(15,6) [note: 'Quantité commandée, unité de base']
+  OBNEPR numeric(17,6) [note: 'Prix net']
+  OBDWDT numeric(8,0) [note: 'Date de livraison prévue (verifie)']
+  OBCODT numeric(8,0) [note: 'Date confirmée actuelle']
+  OBDLQT numeric(15,6) [note: 'Quantité livrée']
+  OBCAQT numeric(15,6) [note: 'Quantité annulée']
+  OBORST varchar(2) [note: 'Statut, 99 = terminée ou annulée (verifie)']
+  OBLMDT numeric(8,0) [note: 'Dernière modification']
+  indexes { (OBCONO, OBORNO, OBPONR, OBPOSX) [pk] }
+}
+
+Table OOLINE_VERSIONS {
+  OBCONO numeric(3,0)
+  OBORNO varchar(10)
+  OBPONR numeric(5,0)
+  OBPOSX numeric(2,0)
+  VARIATION_NUMBER numeric(10,0) [note: 'Version, croissante']
+  VARIATION_TIMESTAMP timestamp
+  OBORQT numeric(15,6)
+  OBCODT numeric(8,0) [note: 'Date confirmée de cette version']
+  OBDLQT numeric(15,6)
+  OBORST varchar(2)
+  Note: 'Reprend toutes les colonnes de OOLINE ; seules les plus utiles sont listées ici'
+  indexes { (OBCONO, OBORNO, OBPONR, OBPOSX, VARIATION_NUMBER) [pk] }
+}
+
+Table MHDISH {
+  OQCONO numeric(3,0)
+  OQDLIX numeric(11,0) [note: 'Numéro de livraison']
+  OQWHLO varchar(3) [note: 'Entrepôt d expédition']
+  OQDSDT numeric(8,0) [note: 'Date d expédition']
+  indexes { (OQCONO, OQDLIX) [pk] }
+}
+
+Table MHDISL {
+  URCONO numeric(3,0)
+  URDLIX numeric(11,0)
+  URRIDN varchar(10) [note: 'Commande']
+  URRIDL numeric(5,0) [note: 'Ligne de commande']
+  URRIDX numeric(2,0) [note: 'Sous-ligne']
+  URITNO varchar(15)
+  URTRQT numeric(15,6) [note: 'Quantité expédiée']
+  indexes { (URCONO, URDLIX, URRIDN, URRIDL, URRIDX) [pk] }
+}
+
+Table ODHEAD {
+  UACONO numeric(3,0)
+  UADIVI varchar(3)
+  UAORNO varchar(10)
+  UADLIX numeric(11,0)
+  UAIVNO numeric(10,0) [note: 'Numéro de facture']
+  UAIVDT numeric(8,0) [note: 'Date de facture']
+  UACUNO varchar(10)
+  UACUCD varchar(3)
+  UAOIVN numeric(10,0) [note: 'Facture d origine (avoir), 0 sinon']
+  UACRTP varchar(3) [note: 'Motif d avoir : RET, RIS, PRX']
+  indexes { (UACONO, UADIVI, UAORNO, UADLIX) [pk] }
+}
+
+Table ODLINE {
+  UBCONO numeric(3,0)
+  UBDIVI varchar(3)
+  UBORNO varchar(10)
+  UBPONR numeric(5,0)
+  UBPOSX numeric(2,0)
+  UBDLIX numeric(11,0) [note: 'Livraison, 0 pour un avoir']
+  UBIVNO numeric(10,0)
+  UBITNO varchar(15)
+  UBIVQT numeric(15,6) [note: 'Négatif pour un avoir']
+  UBLNAM numeric(17,2) [note: 'Montant net, négatif pour un avoir']
+  UBUCOS numeric(17,6) [note: 'Coût de la division, jamais utilisé']
+  indexes { (UBCONO, UBDIVI, UBORNO, UBPONR, UBPOSX, UBDLIX) [pk] }
+}
+
+Table MITBAL {
+  MBCONO numeric(3,0)
+  MBWHLO varchar(3)
+  MBITNO varchar(15)
+  MBSTQT numeric(15,6) [note: 'Stock actuel']
+  indexes { (MBCONO, MBWHLO, MBITNO) [pk] }
+}
+
+Table MITTRA {
+  MTCONO numeric(3,0)
+  MTWHLO varchar(3)
+  MTITNO varchar(15)
+  MTRGDT numeric(8,0) [note: 'Date du mouvement']
+  MTRGTM numeric(6,0) [note: 'Heure HHMMSS']
+  MTTMSX numeric(3,0) [note: 'Ordre dans la seconde']
+  MTTTYP numeric(2,0) [note: '11 réception, 31 expédition, 90 reprise, 92 inventaire']
+  MTTRQT numeric(15,6) [note: 'Positive en entrée, négative en sortie']
+  MTRIDN varchar(10) [note: 'Commande d origine']
+  indexes { (MTCONO, MTWHLO, MTITNO, MTRGDT, MTRGTM, MTTMSX) [pk] }
+}
+
+Ref: OOHEAD.(OACONO, OACUNO) > OCUSMA.(OKCONO, OKCUNO)
+Ref: OOLINE.(OBCONO, OBORNO) > OOHEAD.(OACONO, OAORNO)
+Ref: OOLINE.(OBCONO, OBITNO) > MITMAS.(MMCONO, MMITNO)
+Ref: OOLINE_VERSIONS.(OBCONO, OBORNO, OBPONR, OBPOSX) > OOLINE.(OBCONO, OBORNO, OBPONR, OBPOSX)
+Ref: MHDISL.(URCONO, URDLIX) > MHDISH.(OQCONO, OQDLIX)
+Ref: MHDISL.(URCONO, URRIDN, URRIDL, URRIDX) > OOLINE.(OBCONO, OBORNO, OBPONR, OBPOSX)
+Ref: ODLINE.(UBCONO, UBORNO, UBPONR, UBPOSX) > OOLINE.(OBCONO, OBORNO, OBPONR, OBPOSX)
+Ref: ODHEAD.(UACONO, UACUNO) > OCUSMA.(OKCONO, OKCUNO)
+Ref: MITBAL.(MBCONO, MBITNO) > MITMAS.(MMCONO, MMITNO)
+Ref: MITTRA.(MTCONO, MTITNO) > MITMAS.(MMCONO, MMITNO)

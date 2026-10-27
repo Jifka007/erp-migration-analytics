@@ -1,0 +1,250 @@
+# Export de type Infor M3
+
+*Rédigé en phase 1 (conception des sources), tâche 1.3, octobre 2026. Le schéma relationnel est dans [`02_m3_export.dbml`](02_m3_export.dbml), à coller dans dbdiagram.io pour le dessiner.*
+
+M3 est le nouvel ERP du groupe. Depuis la bascule du 7 avril 2026, il sert la France et l'Allemagne (première vague, choix du projet : les entités réelles de la première vague ne sont pas publiques). Le projet simule un **export de M3 en tables relationnelles**, chargé dans une base PostgreSQL du conteneur, `m3`, puis dans la couche `raw` sans renommage (document 00, section 4).
+
+## 1. Ce qu'on simule, et pourquoi
+
+Delta Plus utilise Infor CloudSuite, c'est-à-dire M3 en SaaS : personne ne se connecte directement à la base. Les données sortent par les outils d'Infor : le data lake (fichiers NDJSON versionnés, interrogés en SQL avec Compass), les API, ou Stream Pipelines, qui réplique les tables vers une base extérieure. Le projet simule ce dernier cas : des tables relationnelles qui reprennent la structure de M3 *(pratique courante, appuyée par la documentation d'Infor)*. Le JSON est déjà démontré par le CRM (tâche 1.4) ; garder M3 en tables rend la comparaison avec l'ancien ERP lisible et l'ingestion par Airbyte simple.
+
+**Ce qui est vérifié, ce qui est inspiré.** Les noms de tables viennent du modèle de données de M3 et sont vérifiés. Quelques champs sont confirmés par des sources publiques ; ils sont marqués ✓. Les autres suivent la convention de M3 (un préfixe de deux lettres propre à la table, puis quatre lettres) mais leur nom exact n'a pas pu être vérifié : ils sont **inspirés de M3**, et le README le dit. C'est une simulation, pas une copie.
+
+**Ce qui distingue M3 de l'ancien ERP**, et donne son travail à la staging :
+
+| Sujet | Ancien ERP | Export M3 |
+| --- | --- | --- |
+| Noms | Abréviations françaises (`CDELIG`, `LCQTE`) | Tables et champs de M3 (`OOLINE`, `OBORQT`) |
+| Entité juridique | Code société (`030`) | Division (`DIVI`) dans une société (`CONO`) |
+| Dates | `CYYMMDD` (`1260318`) | `YYYYMMDD` (`20260318`) *(inspiré)* |
+| Avoirs | Montants positifs, signés par le type de document | Quantités et montants **négatifs** *(inspiré)* |
+| Date promise | Écrasée à chaque report | Gardée dans les versions successives des lignes |
+| Stock | Photo à chaque clôture mensuelle | Solde actuel et historique des mouvements |
+| Codes articles et clients | `GNT204`, `00001042` | `HAND-000204`, `FR1042` : nouveau référentiel |
+
+## 2. Société, division, site : la hiérarchie de M3
+
+Dans M3, l'entité juridique, avec son propre grand livre et sa devise, est la **division** (`DIVI`). La **société** (`CONO`) est le niveau au-dessus et peut regrouper plusieurs divisions ; viennent ensuite les sites et les entrepôts *(Infor, documentation Multiple Unit Coordination)*. Le projet utilise une seule société, `CONO = 100`, et une division par filiale migrée :
+
+| `CONO` | `DIVI` | Entité du projet | Devise |
+| --- | --- | --- | --- |
+| 100 | `FRA` | FR | EUR |
+| 100 | `DEU` | DE | EUR |
+
+**`entity_id` correspond donc à la division (`DIVI`), pas à `CONO`.** Les ventes entre divisions sont gérées par la fonction MUC de M3, qui crée automatiquement les factures internes *(Infor)* : une vente d'Apt à l'Allemagne apparaît comme une facture de la division `FRA` à un client interne qui représente la division `DEU`. Les entrepôts suivent la même logique : `APT` (plateforme d'Apt, division `FRA`) et `DEP` (dépôt local allemand, division `DEU`).
+
+## 3. Les tables
+
+| Table | Signification | Préfixe | Une ligne par | Clé |
+| --- | --- | --- | --- | --- |
+| `OCUSMA` | Fiche client | `OK` | client | `OKCONO`, `OKCUNO` |
+| `MITMAS` | Fiche article | `MM` | article | `MMCONO`, `MMITNO` |
+| `OOHEAD` | Commandes, en-têtes | `OA` | commande | `OACONO`, `OAORNO` |
+| `OOLINE` | Commandes, lignes (état actuel) | `OB` | ligne ou sous-ligne de commande | `OBCONO`, `OBORNO`, `OBPONR`, `OBPOSX` |
+| `OOLINE_VERSIONS` | Versions successives des lignes de commande | `OB` | version d'une ligne | clé de `OOLINE`, `VARIATION_NUMBER` |
+| `MHDISH` | Livraisons, en-têtes | `OQ` | livraison | `OQCONO`, `OQDLIX` |
+| `MHDISL` | Livraisons, lignes reliées aux lignes de commande | `UR` | ligne de livraison | `URCONO`, `URDLIX`, `URRIDN`, `URRIDL`, `URRIDX` |
+| `ODHEAD` | Commandes livrées, en-têtes, base de la facturation | `UA` | livraison facturée | `UACONO`, `UADIVI`, `UAORNO`, `UADLIX` |
+| `ODLINE` | Commandes livrées, lignes, base de la facturation | `UB` | ligne livrée et facturée | `UBCONO`, `UBDIVI`, `UBORNO`, `UBPONR`, `UBPOSX`, `UBDLIX` |
+| `MITBAL` | Solde de stock actuel | `MB` | article et entrepôt | `MBCONO`, `MBWHLO`, `MBITNO` |
+| `MITTRA` | Historique des mouvements de stock | `MT` | mouvement | `MTCONO`, `MTWHLO`, `MTITNO`, `MTRGDT`, `MTRGTM`, `MTTMSX` |
+
+Les tables de factures proprement dites (`OINVOH`, `OINVOL`) servent à la comptabilité ; le projet prend `ODHEAD` et `ODLINE`, qui portent le numéro et la date de facture, l'article, la quantité et le montant, et sont reliées aux livraisons. Les achats fournisseurs restent une extension.
+
+**Le coût groupe.** Le coût unitaire que M3 enregistre sur une ligne livrée (`UBUCOS`) est celui de la division ; comme `FLPRV` dans l'ancien ERP, il n'est jamais utilisé. Le coût groupe mensuel reste une seule table pour tout le groupe, `COUMOI`, tenue par la finance du groupe pendant la cohabitation des deux systèmes *(hypothèse)* : c'est la seule source de coût de la marge et du stock (document 01).
+
+## 4. Les colonnes
+
+Types : `VARCHAR(n)` pour le texte, `NUMERIC(p,s)` pour les nombres. Dates au format `YYYYMMDD` en `NUMERIC(8,0)`, `0` quand il n'y a pas de date.
+
+### `OCUSMA` : la fiche client
+
+| Colonne | Type | Signification | Nom cible |
+| --- | --- | --- | --- |
+| `OKCONO` | NUMERIC(3,0) | Société | — |
+| `OKCUNO` | VARCHAR(10) | Numéro client M3 (`FR1042`) | `customer_code` |
+| `OKCUNM` | VARCHAR(36) | Raison sociale | `customer_name` |
+| `OKCUTP` | NUMERIC(1,0) | Type de client : `0` client extérieur, `1` client interne | sert à `is_intercompany` |
+| `OKDIVI` | VARCHAR(3) | Division propriétaire de la fiche | `entity_id` |
+| `OKIDIV` | VARCHAR(3) | Pour un client interne : la division ou l'entité du groupe qu'il représente | `intercompany_entity_id` |
+| `OKCUCL` | VARCHAR(3) | Catégorie client : `NEG`, `SPE`, `GEN`, `GSB` | `customer_segment_id` (par correspondance) |
+| `OKCSCD` | VARCHAR(3) | Pays | `country_code` |
+| `OKOLDC` | VARCHAR(10) | Ancien code client, repris de l'ancien ERP à la migration ; parfois vide | sert à `map_customers` |
+
+### `MITMAS` : la fiche article
+
+| Colonne | Type | Signification | Nom cible |
+| --- | --- | --- | --- |
+| `MMCONO` | NUMERIC(3,0) | Société | — |
+| `MMITNO` | VARCHAR(15) | Numéro d'article M3 (`HAND-000204`) | `product_code` |
+| `MMITDS` | VARCHAR(30) | Libellé | `product_name` |
+| `MMITGR` | VARCHAR(5) | Groupe d'articles : la famille du projet, avec les codes de M3 | `product_family_id` (par correspondance) |
+| `MMUNMS` | VARCHAR(3) | Unité de base : `PAR` (paire), `PCE` (pièce) | — |
+| `MMSTAT` | VARCHAR(2) | Statut : `20` actif, `90` bloqué | `is_active` |
+| `MMOLDI` | VARCHAR(15) | Ancien code article de l'ancien ERP ; parfois vide | sert à `map_products` |
+
+Les quantités de M3 sont toutes en unité de base : la conversion des boîtes de l'ancien ERP n'existe pas ici.
+
+### `OOHEAD` : les en-têtes de commande
+
+| Colonne | Type | Signification | Nom cible |
+| --- | --- | --- | --- |
+| `OACONO` | NUMERIC(3,0) | Société | — |
+| `OADIVI` | VARCHAR(3) | Division | `entity_id` |
+| `OAORNO` | VARCHAR(10) | Numéro de commande (`0000045872`) | `order_number` |
+| `OACUNO` | VARCHAR(10) | Numéro client | `customer_code` |
+| `OAORDT` | NUMERIC(8,0) | Date de commande | `order_date` |
+| `OARLDT` ✓ | NUMERIC(8,0) | Date demandée, au niveau de l'en-tête | `requested_date` si la ligne n'en a pas |
+| `OACUCD` | VARCHAR(3) | Devise | `currency_code` |
+| `OAORTP` | VARCHAR(3) | Type de commande : `C01` vente, `R01` retour | — |
+| `OAYREF` | VARCHAR(30) | Pour une commande reprise à la bascule : le numéro de la commande dans l'ancien ERP ; parfois vide | sert à `map_transactions` |
+
+### `OOLINE` : les lignes de commande, état actuel
+
+| Colonne | Type | Signification | Nom cible |
+| --- | --- | --- | --- |
+| `OBCONO` | NUMERIC(3,0) | Société | — |
+| `OBDIVI` | VARCHAR(3) | Division | `entity_id` |
+| `OBORNO` | VARCHAR(10) | Numéro de commande | `order_number` |
+| `OBPONR` | NUMERIC(5,0) | Numéro de ligne | `order_line_number` |
+| `OBPOSX` ✓ | NUMERIC(2,0) | Sous-ligne (`0` quand la ligne n'est pas découpée) | `order_line_suffix` |
+| `OBITNO` | VARCHAR(15) | Numéro d'article | `product_code` |
+| `OBWHLO` | VARCHAR(3) | Entrepôt d'expédition : `APT` ou `DEP` | `warehouse_id` (par correspondance) |
+| `OBORQT` | NUMERIC(15,6) | Quantité commandée, en unité de base | `ordered_quantity` |
+| `OBNEPR` | NUMERIC(17,6) | Prix unitaire net, remise déduite | `net_unit_price_local` |
+| `OBDWDT` ✓ | NUMERIC(8,0) | Date de livraison prévue de la ligne, demandée par le client | `requested_date` |
+| `OBCODT` | NUMERIC(8,0) | Date confirmée **actuelle** | `promised_date` |
+| `OBDLQT` | NUMERIC(15,6) | Quantité livrée | sert de contrôle |
+| `OBCAQT` | NUMERIC(15,6) | Quantité annulée | `cancelled_quantity` |
+| `OBORST` ✓ | VARCHAR(2) | Statut de la ligne : de `05` (saisie) à `99`, `99` signifiant aussi une ligne annulée sans livraison | `order_line_status` |
+| `OBLMDT` | NUMERIC(8,0) | Date de dernière modification | sert à dater une annulation |
+
+### `OOLINE_VERSIONS` : les versions successives des lignes
+
+Chaque modification d'une ligne (date confirmée, quantité, statut) crée une version, comme dans le data lake d'Infor, où chaque enregistrement répliqué porte un numéro de version (*variation ID*) *(Infor)*. La table reprend toutes les colonnes de `OOLINE`, plus :
+
+| Colonne | Type | Signification | Nom cible |
+| --- | --- | --- | --- |
+| `VARIATION_NUMBER` | NUMERIC(10,0) | Numéro de version, croissant | — |
+| `VARIATION_TIMESTAMP` | TIMESTAMP | Date et heure de la modification | — |
+
+**C'est d'ici que vient la première date promise** : la date confirmée (`OBCODT`) de la première version où elle est remplie. `OOLINE` donne l'état actuel ; additionner les versions compterait la même ligne plusieurs fois.
+
+### `MHDISH` et `MHDISL` : les livraisons
+
+| Colonne | Type | Signification | Nom cible |
+| --- | --- | --- | --- |
+| `OQCONO` | NUMERIC(3,0) | Société | — |
+| `OQDLIX` | NUMERIC(11,0) | Numéro de livraison | `delivery_number` |
+| `OQWHLO` | VARCHAR(3) | Entrepôt d'expédition | `warehouse_id` |
+| `OQDSDT` | NUMERIC(8,0) | Date d'expédition | `shipped_date` |
+| `URCONO` | NUMERIC(3,0) | Société | — |
+| `URDLIX` | NUMERIC(11,0) | Numéro de livraison | `delivery_number` |
+| `URRIDN` | VARCHAR(10) | Commande livrée | `order_number` |
+| `URRIDL` | NUMERIC(5,0) | Ligne de commande livrée | `order_line_number` |
+| `URRIDX` | NUMERIC(2,0) | Sous-ligne livrée | `order_line_suffix` |
+| `URITNO` | VARCHAR(15) | Numéro d'article | `product_code` |
+| `URTRQT` | NUMERIC(15,6) | Quantité expédiée, en unité de base | `shipped_quantity` |
+
+`MHDISL` relie chaque livraison à la ligne et à la sous-ligne de commande qu'elle sert *(M3, modèle de données)* : une ligne livrée en deux fois a deux lignes de livraison.
+
+### `ODHEAD` et `ODLINE` : les commandes livrées et facturées
+
+| Colonne | Type | Signification | Nom cible |
+| --- | --- | --- | --- |
+| `UACONO` | NUMERIC(3,0) | Société | — |
+| `UADIVI` | VARCHAR(3) | Division | `entity_id` |
+| `UAORNO` | VARCHAR(10) | Commande | `order_number` |
+| `UADLIX` | NUMERIC(11,0) | Livraison facturée | `delivery_number` |
+| `UAIVNO` | NUMERIC(10,0) | Numéro de facture | `invoice_number` |
+| `UAIVDT` | NUMERIC(8,0) | Date de facture | `invoice_date` |
+| `UACUNO` | VARCHAR(10) | Client facturé | `customer_code` |
+| `UACUCD` | VARCHAR(3) | Devise | `currency_code` |
+| `UAOIVN` | NUMERIC(10,0) | Pour un avoir : la facture d'origine ; `0` sinon | `original_invoice_number` |
+| `UACRTP` | VARCHAR(3) | Pour un avoir : `RET` retour, `RIS` ristourne, `PRX` erreur de prix | `credit_note_type` |
+| `UBCONO` | NUMERIC(3,0) | Société | — |
+| `UBDIVI` | VARCHAR(3) | Division | `entity_id` |
+| `UBORNO` | VARCHAR(10) | Commande | `order_number` |
+| `UBPONR` | NUMERIC(5,0) | Ligne de commande | `order_line_number` |
+| `UBPOSX` | NUMERIC(2,0) | Sous-ligne | `order_line_suffix` |
+| `UBDLIX` | NUMERIC(11,0) | Livraison ; `0` pour un avoir | `delivery_number` |
+| `UBIVNO` | NUMERIC(10,0) | Numéro de facture | `invoice_number` |
+| `UBITNO` | VARCHAR(15) | Numéro d'article | `product_code` |
+| `UBIVQT` | NUMERIC(15,6) | Quantité facturée, **négative** pour un avoir | `quantity` |
+| `UBLNAM` | NUMERIC(17,2) | Montant net de la ligne en devise, **négatif** pour un avoir | `net_amount_local` |
+| `UBUCOS` | NUMERIC(17,6) | Coût unitaire de la division | **jamais utilisé** |
+
+La ligne de facture se rattache à la ligne de commande et à la livraison par la commande, la ligne, la sous-ligne et la livraison : c'est ce lien qui permet d'appliquer le rapprochement des commandes migrées au CA (document 01, section 4).
+
+### `MITBAL` et `MITTRA` : le stock
+
+| Colonne | Type | Signification | Nom cible |
+| --- | --- | --- | --- |
+| `MBCONO` | NUMERIC(3,0) | Société | — |
+| `MBWHLO` | VARCHAR(3) | Entrepôt | `warehouse_id` |
+| `MBITNO` | VARCHAR(15) | Numéro d'article | `product_code` |
+| `MBSTQT` | NUMERIC(15,6) | Stock actuel, à la date de l'export | sert de contrôle |
+| `MTCONO` | NUMERIC(3,0) | Société | — |
+| `MTWHLO` | VARCHAR(3) | Entrepôt | `warehouse_id` |
+| `MTITNO` | VARCHAR(15) | Numéro d'article | `product_code` |
+| `MTRGDT` | NUMERIC(8,0) | Date du mouvement | `movement_date` |
+| `MTRGTM` | NUMERIC(6,0) | Heure du mouvement (`HHMMSS`) | — |
+| `MTTMSX` | NUMERIC(3,0) | Numéro d'ordre dans la seconde | — |
+| `MTTTYP` | NUMERIC(2,0) | Type de mouvement : `11` réception, `31` expédition, `90` reprise de stock à la bascule, `92` ajustement d'inventaire | `movement_type` |
+| `MTTRQT` | NUMERIC(15,6) | Quantité, positive en entrée, négative en sortie | `movement_quantity` |
+| `MTRIDN` | VARCHAR(10) | Commande à l'origine du mouvement | `order_number` |
+
+**Le stock de fin de mois se reconstruit dans dbt** : pour chaque article, entrepôt et fin de mois, la somme cumulée des mouvements depuis la reprise du 7 avril (une fonction de fenêtre). Deux contrôles en découlent :
+
+- le stock reconstruit à la date de l'export doit être égal à `MBSTQT` ;
+- les mouvements de reprise (type `90`) doivent être égaux au stock d'Apt de la clôture de mars 2026 dans l'ancien ERP (`STKMOI`) : c'est la réconciliation du stock à la bascule.
+
+Seul l'entrepôt `APT` alimente `fct_stock_snapshots` : le dépôt allemand `DEP` existe pour les expéditions, mais son stock n'est pas suivi (document 02, section 4).
+
+## 5. La bascule, vue depuis M3
+
+- **Les fiches articles et clients sont recréées** avec de nouveaux codes. L'ancien code est repris dans `MMOLDI` et `OKOLDC`, mais pas toujours : les correspondances (`map_products`, `map_customers`) ne peuvent pas compter uniquement sur ces champs.
+- **Les commandes encore ouvertes sont recréées** dans M3 le 7 avril, avec l'ancien numéro dans `OAYREF` quand la reprise l'a renseigné. Ce champ est le statut `certain` de `map_transactions` ; sans lui, le rapprochement se fait par client, article, quantité restant à livrer et date demandée (statut `probable`, document 01, section 4).
+- **Le stock d'Apt est repris** par des mouvements de type `90`, datés du 7 avril.
+- **Les commandes reprises ont une première version datée du 7 avril** : leur première promesse dans M3 est celle de la reprise, pas celle de l'ancien ERP. Pour ces lignes, l'OTIF officiel n'a de sens qu'avec prudence : elles sont signalées par leur statut de rapprochement.
+
+## 6. Une vente suivie de bout en bout
+
+La division française (`FRA`) reçoit le 4 mai 2026 la commande `0000045872` du client `FR1042` : 100 paires de gants anti-coupure, demandées pour le 21 mai, confirmées pour le 19 mai, puis repoussées au 25 mai. 60 paires partent le 19 mai, 40 le 29 mai, cinq reviennent abîmées le 10 juin.
+
+`OOLINE_VERSIONS` (colonnes utiles) :
+
+| OBORNO | OBPONR | OBPOSX | VARIATION_NUMBER | OBORQT | OBCODT | OBDLQT | OBORST |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 0000045872 | 1 | 0 | 1 | 100 | 20260519 | 0 | 22 |
+| 0000045872 | 1 | 0 | 2 | 100 | 20260525 | 0 | 22 |
+| 0000045872 | 1 | 0 | 3 | 100 | 20260525 | 60 | 44 |
+| 0000045872 | 1 | 0 | 4 | 100 | 20260525 | 100 | 77 |
+
+La première promesse est le 19 mai (version 1) ; `OOLINE` ne montre que l'état actuel, le 25 mai. L'OTIF officiel compare la dernière expédition (29 mai) au 19 mai : la ligne n'est pas OTIF. L'OTIF comparable la compare au 25 mai : elle ne l'est pas non plus.
+
+`MHDISL` :
+
+| URDLIX | URRIDN | URRIDL | URRIDX | URITNO | URTRQT |
+| --- | --- | --- | --- | --- | --- |
+| 80000901 | 0000045872 | 1 | 0 | HAND-000204 | 60 |
+| 80000934 | 0000045872 | 1 | 0 | HAND-000204 | 40 |
+
+`ODLINE` :
+
+| UBDIVI | UBIVNO | UBDLIX | UBITNO | UBIVQT | UBLNAM |
+| --- | --- | --- | --- | --- | --- |
+| FRA | 5001 | 80000901 | HAND-000204 | 60 | 600.00 |
+| FRA | 5043 | 80000934 | HAND-000204 | 40 | 400.00 |
+| FRA | 5077 | 0 | HAND-000204 | −5 | −50.00 |
+
+Ici, l'avoir est négatif : la même règle métier (« un avoir réduit le CA ») s'écrit différemment dans les deux systèmes, et la staging les ramène à la même convention.
+
+## Sources
+
+- [M3 Business Engine Data Model Introduction (tables de commande, livraison, facturation, article, client, stock)](https://pdfcoffee.com/m3-business-engine-data-model-introduction-pdf-free.html)
+- [Summit BI, Infor M3 Reference Database](https://summit-bi.com/resources/m3-reference)
+- [Summit BI, OTIF et champs des ERP (OARLDT, OBDWDT, OBPOSX, OBORST)](https://summit-bi.com/resources/kpi/otif)
+- [Infor, Multiple Unit Coordination (société, division, ventes internes)](https://docs.infor.com/m3udi/16.x/en-us/m3beud/finaccths/cas525.html)
+- [Infor, versions des données dans le Data Lake (variation ID)](https://docs.infor.com/inforos/2026.x/en-us/useradminlib_cloud/datafabrug/msq1664800989640.html)
+- [Redgate Simple Talk, Stream Pipelines](https://www.red-gate.com/simple-talk/data-analytics/unlocking-infor-cloudsuite-data-making-the-most-of-it-with-stream-pipelines/)

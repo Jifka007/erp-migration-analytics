@@ -23,7 +23,7 @@ Les sources suivent la légende du document [01](01_data_model_and_business_rule
 | AE | Émirats arabes unis | Hors Europe | AED | non | oui | `legacy_erp` / `legacy_erp` | début de l'historique |
 | BR | Brésil | Hors Europe | BRL | non | oui | `brazil_file` | 1er janvier 2026 |
 
-**Une entité est une société, un site est un lieu.** Une entité est une société juridique : elle a ses comptes, sa devise, ses factures, et c'est la « société » de l'ERP (`CONO` dans M3) ; elle se lit sur l'axe `dim_entity`. Un site est un lieu physique (un entrepôt, une usine) qui appartient à une entité ; les plateformes se lisent sur l'axe `dim_warehouse`. La France est une entité (`FR`), Apt est son site (`FR-APT`).
+**Une entité est une société, un site est un lieu.** Une entité est une société juridique : elle a ses comptes, sa devise, ses factures, et c'est l'entité juridique de l'ERP (le code société dans l'ancien ERP, la division `DIVI` dans M3, où `CONO` est le niveau au-dessus) ; elle se lit sur l'axe `dim_entity`. Un site est un lieu physique (un entrepôt, une usine) qui appartient à une entité ; les plateformes se lisent sur l'axe `dim_warehouse`. La France est une entité (`FR`), Apt est son site (`FR-APT`).
 
 **Les types d'entités.** Ce ne sont pas des cases exclusives : ils se cumulent, d'où les deux booléens plutôt qu'un rôle unique.
 

@@ -43,7 +43,7 @@ Une commande, une expédition et une facture sont trois événements différents
 | FR | 45872 | 1 | 0 | m3 | 4 mai | 21 mai | 19 mai | 100 | 0 | 1 000 |
 | FR | 45872 | 2 | 0 | m3 | 4 mai | 21 mai | 19 mai | 20 | 0 | 400 |
 
-La clé a cinq colonnes, et chacune évite un doublon : `order_line_number` parce qu'une commande a plusieurs lignes ; `entity_id` (la filiale, qui correspond à la « société » des ERP, `CONO` dans M3) parce que la filiale allemande peut aussi avoir une commande n° 45872 ; `source_system` parce que l'ancien ERP et M3 peuvent réutiliser les mêmes numéros ; `order_line_suffix` parce que M3 peut découper une ligne en sous-lignes (0 quand il n'y en a pas).
+La clé a cinq colonnes, et chacune évite un doublon : `order_line_number` parce qu'une commande a plusieurs lignes ; `entity_id` (la filiale, c'est-à-dire l'entité juridique : le code société dans l'ancien ERP, la division `DIVI` dans M3) parce que la filiale allemande peut aussi avoir une commande n° 45872 ; `source_system` parce que l'ancien ERP et M3 peuvent réutiliser les mêmes numéros ; `order_line_suffix` parce que M3 peut découper une ligne en sous-lignes (0 quand il n'y en a pas).
 
 *2. `fct_deliveries` : une ligne par expédition d'une ligne de commande.* Les gants partent en deux fois.
 
@@ -263,7 +263,7 @@ Pour que les conclusions ne soient pas circulaires, je ne connais pas les histoi
 | `docs/01_data_model_and_business_rules.md` | Ce document |
 | `docs/02_reference_data.md` et `config/delta_plus/master_data.yml` | Le référentiel maître du groupe fictif |
 | `docs/sources/01_legacy_erp.md` et `01_legacy_erp.dbml` | Tables et colonnes de l'ancien ERP, avec leur schéma relationnel |
-| `docs/sources/02_m3_export.md` | Tables de l'export de type M3 et correspondance avec les objets métier |
+| `docs/sources/02_m3_export.md` et `02_m3_export.dbml` | Tables de l'export de type M3 et correspondance avec les objets métier |
 | `docs/sources/03_crm.md` | Structure du document compte du CRM et un exemple JSON |
 | `docs/sources/04_spreadsheets.md` | Mise en page du fichier brésilien et du budget |
 | `config/delta_plus/defects.yml` | Les types d'effets et les défauts à injecter |
