@@ -32,11 +32,11 @@ Une seule feuille, `Vendas`. Comme dans beaucoup de fichiers préparés à la ma
 | `Número da nota fiscal` | Numéro de facture (la *nota fiscal* est la facture électronique brésilienne) | Texte (`NF-000318`) | `invoice_number` |
 | `Item` | Numéro de ligne de la facture | Entier | `invoice_line_number` |
 | `Data de emissão` | Date d'émission | `DD/MM/AAAA` (`18/03/2026`), parfois une date Excel | `invoice_date` |
-| `Tipo` | `Venda` (vente) ou `Devolução` (retour) | Texte | `is_credit_note` |
+| `Tipo` | `Venda` (vente), `Devolução` (retour) ou `Cancelada` (*nota fiscal* annulée après émission, à exclure) | Texte | `is_credit_note` ; une devolução a le type d'avoir `RET` (`credit_note_type`), le Brésil n'émet pas de ristournes dans le fichier |
 | `Nota fiscal de origem` | Pour une devolução : la facture d'origine | Texte, souvent vide | `original_invoice_number` |
 | `Código do cliente` | Code client du Brésil | Texte (`C-2210`) | `customer_code` |
 | `Nome do cliente` | Raison sociale | Texte | `customer_name` |
-| `UF` | État brésilien du client (`SP`, `RJ`…) | Texte | `region_code` |
+| `UF` | État brésilien du client (`SP`, `RJ`…) ; non utilisé dans le cœur | Texte | `region_code` |
 | `Segmento` | Segment, avec les mots du Brésil (`Revenda construção`, `Distribuidor EPI`…) | Texte | `customer_segment_id` (par correspondance) |
 | `Código do produto` | Code article du Brésil (`ATH-5521`) | Texte | `local_product_code` |
 | `Descrição` | Libellé | Texte | `product_name` |
@@ -54,7 +54,9 @@ Le système du Brésil crée **ses propres codes**, même pour les produits du g
 
 1. `Referência Delta Plus` est remplie et existe dans le catalogue du groupe : produit du groupe (statut `certain`), rattaché à son identifiant unifié par `map_products`. La référence peut être un code de l'ancien ERP (le Brésil achète à Shanghai, restée sur l'ancien système) ou de M3 : `map_products` les ramène au même article.
 2. La colonne est vide, mais le code brésilien figure dans une table de correspondance tenue à la main (`seed_brazil_products`) : produit du groupe (statut `probable`).
-3. Sinon : **produit local**, hérité d'avant le rachat. Il entre dans `dim_product` avec le type `local` (le cadrage prévoit ce type de référence) et sa famille quand elle est connue.
+3. Sinon : **produit local**, hérité d'avant le rachat. Il entre dans `dim_product` avec le type `local` (le cadrage prévoit ce type de référence).
+
+**Chaque produit local a une gamme, et une conversion d'unité.** La table tenue à la main (`seed_brazil_products`) donne, pour chaque code brésilien local, sa gamme (obligatoire : le budget et les analyses se lisent par gamme), sa famille quand elle est connue, et le nombre d'unités de base dans une boîte (`CX`). Pour un produit du groupe, la conversion vient de la fiche article du groupe. Un code local absent de la table est signalé, avec la gamme `UNK`.
 
 **L'indicateur d'intégration** : la part du CA du Brésil réalisée en produits du groupe, mois par mois. Elle doit monter. Elle se lit avec la part de ses achats faite auprès du groupe (ventes internes de Shanghai au Brésil) : si la première monte sans la seconde, il y a une incohérence à investiguer.
 
@@ -68,6 +70,9 @@ Le système du Brésil crée **ses propres codes**, même pour les produits du g
 | Devoluções en valeurs positives | Signées selon `Tipo` |
 | Boîtes (`CX`) | Converties en unité de base |
 | Un mois manquant, ou envoyé deux fois | Contrôle : un fichier et un seul par mois depuis janvier 2026 ; un doublon de fichier est détecté par le nom et par le numéro de *nota fiscal* |
+| Un mois renvoyé corrigé (`vendas_2026_03_v2.xlsx`) | La version la plus récente remplace l'ancienne, ligne à ligne par numéro de *nota fiscal* et d'item ; l'ancienne est gardée dans `raw` pour la traçabilité |
+| *Nota fiscal* annulée (`Cancelada`) | Exclue du CA, comptée et listée sur la page qualité |
+| Retour arrivé le mois suivant | Normal : la devolução est dans le fichier du mois où elle est émise, avec sa facture d'origine |
 | Référence Delta Plus vide ou fausse | Table de correspondance tenue à la main, taux de correspondance suivi sur la page qualité |
 
 Les taux de ces défauts sont fixés en tâche 1.6 (`config/delta_plus/defects.yml`).
@@ -76,7 +81,11 @@ Les taux de ces défauts sont fixés en tâche 1.6 (`config/delta_plus/defects.y
 
 Le Brésil a ses propres codes clients, sans équivalent dans les autres systèmes et sans compte dans le CRM. L'identifiant unifié est le code brésilien précédé de l'entité (`BR-C-2210`). Le segment est ramené aux segments du groupe par une table de correspondance. Il n'y a pas de client interne : le Brésil ne vend pas aux autres entités.
 
-## 7. Les montants en euros
+## 7. Ce que le Brésil ne permet pas de calculer
+
+Sans commandes ni expéditions, le Brésil n'entre ni dans l'OTIF, ni dans le carnet, ni dans les prises de commandes. Il n'entre pas non plus dans les **clients actifs**, définis sur les lignes de commande (document 01) : ses clients sont comptés à part, à partir de ses factures, et signalés comme tels. Ses ventes ne sont rattachées à aucune ligne de commande ni expédition (`order_number` et `delivery_number` vides), ce qui est attendu et ne compte pas comme une anomalie.
+
+## 8. Les montants en euros
 
 Comme toutes les ventes, les montants sont convertis au taux moyen BCE du mois de la facture (EUR → BRL, publié directement par la BCE). Pour la croissance organique, le Brésil compte dans l'**effet de périmètre** de janvier à décembre 2026, puisqu'il est entré dans le groupe le 1er janvier (document 01, section 2).
 

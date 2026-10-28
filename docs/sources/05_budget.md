@@ -16,12 +16,14 @@ Un onglet par année : `Budget 2024`, `Budget 2025`, `Budget 2026`.
 
 | Filiale | Gamme | Jan | Fév | Mar | … | Déc | Total |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| France | Chaussures | 285 000 | 290 000 | 320 000 | … | 270 000 | 3 540 000 |
-| France | Antichute | 180 000 | 185 000 | 205 000 | … | 170 000 | 2 260 000 |
-| France | Gants | 95 000 | 98 000 | 104 000 | … | 110 000 | 1 250 000 |
+| France | Chaussures | 430 000 | 440 000 | 480 000 | … | 410 000 | 5 400 000 |
+| France | Antichute | 280 000 | 285 000 | 310 000 | … | 265 000 | 3 500 000 |
+| France | Gants | 150 000 | 155 000 | 165 000 | … | 190 000 | 2 000 000 |
 | Allemagne | Chaussures | … | … | … | … | … | … |
 
-- Les montants sont en **euros**, pour toutes les filiales : la finance budgète le groupe dans sa devise *(hypothèse)*. Ils se comparent donc au CA converti au taux moyen du mois.
+- Les montants indiqués sont à l'échelle de développement du projet (1/10e) : la France pèse environ 28 % des 39 M€ du groupe.
+- **Le budget porte sur le CA consolidé** : les ventes aux clients extérieurs seulement, hors ventes entre filiales. Le budget d'une plateforme ne contient donc que ses ventes à ses propres clients ; ce qu'elle vend aux autres entités est budgété chez elles.
+- Les montants sont en **euros**, pour toutes les filiales : la finance budgète le groupe dans sa devise *(hypothèse)*. Ils se comparent au CA converti au taux moyen du mois. Pour une filiale hors zone euro (Chine, Émirats, Brésil), l'écart au budget contient donc aussi un **effet de change** : si le yuan baisse, la Chine paraît sous son budget sans avoir vendu moins. Le lire aux taux du budget est une extension (document 01, section 8).
 - La colonne `Total` est une formule de la feuille : elle n'est pas chargée, elle sert de contrôle.
 - Les filiales et les gammes sont écrites **en toutes lettres**, comme les voit la finance (« France », « Gants »). Une table de correspondance les ramène à `entity_id` et `product_line_id`.
 
@@ -46,6 +48,8 @@ Si le budget 2026 avait été voté sans le Brésil, le groupe paraîtrait au-de
 | Onglet renommé ou ajouté en cours d'année (`Budget 2026 révisé`) | La liste des onglets attendus est fixée ; un onglet inattendu fait échouer le chargement avec un message clair |
 
 Les taux de ces défauts sont fixés en tâche 1.6 (`config/delta_plus/defects.yml`).
+
+**Une seule version par année.** Quand la finance révise le budget (pour ajouter le Brésil en 2026, par exemple), elle remplace les chiffres dans l'onglet de l'année. Le projet ne garde donc que la dernière version ; suivre les versions successives d'un budget (initial, révisé) est une extension.
 
 ## 5. Le calibrage
 
