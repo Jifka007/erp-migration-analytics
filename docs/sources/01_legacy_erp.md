@@ -63,6 +63,8 @@ Les codes société de l'ancien ERP (`030`) ne sont pas ceux du projet (`ES`) : 
 | `CLSEGM` | CHAR(3) | Segment : `NEG` négoce BTP et agricole, `SPE` spécialiste EPI, `GEN` généraliste, `GSB` grande surface de bricolage ; vide pour `GRP` | `customer_segment_id` (par correspondance) |
 | `CLSOCG` | CHAR(3) | Pour un client `GRP` : la société du groupe qu'il représente | `intercompany_entity_id` |
 | `CLPAYS` | CHAR(2) | Pays du client | `country_code` |
+| `CLCPOS` | CHAR(10) | Code postal du client | `postal_code` |
+| `CLIDFI` | CHAR(20) | Identifiant officiel de l'entreprise (TVA intracommunautaire, identifiant national) ; souvent vide | `tax_id` |
 | `CLDTCR` | NUMERIC(7,0) | Date de création de la fiche | `created_date` |
 
 Un client appartient à une société : la clé est (`CLSOC`, `CLCODE`). Une vente est interne quand son client est de type `GRP` (voir le document 02, segment `INTERCOMPANY`).

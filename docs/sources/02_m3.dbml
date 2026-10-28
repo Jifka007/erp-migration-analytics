@@ -16,6 +16,8 @@ Table OCUSMA {
   OKIDIV varchar(3) [note: 'Entité représentée (client interne)']
   OKCUCL varchar(3) [note: 'Catégorie : NEG, SPE, GEN, GSB']
   OKCSCD varchar(3) [note: 'Pays']
+  OKPONO varchar(10) [note: 'Code postal']
+  OKVRNO varchar(16) [note: 'Numéro de TVA, souvent vide']
   OKOLDC varchar(10) [note: 'Ancien code client, parfois vide']
   indexes { (OKCONO, OKCUNO) [pk] }
 }

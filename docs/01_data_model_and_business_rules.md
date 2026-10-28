@@ -228,6 +228,44 @@ La table `map_transactions` relie chaque commande de l'ancien ERP à son équiva
 | Les transactions `unmatched` restent comptées, mais elles sont signalées et listées sur la page qualité, jamais supprimées en silence | Hypothèse | Direction informatique |
 | Un test dbt vérifie que chaque transaction ne contribue qu'une fois au CA consolidé | Pratique courante | — |
 
+**Les correspondances des articles et des clients.** `map_transactions` s'appuie sur deux autres tables, qui servent aussi bien au-delà de la bascule : une même analyse doit suivre un article ou un client avant et après le 7 avril, alors que leurs codes ont changé.
+
+| Table | Une ligne par | Règle `certain` | Règle `probable` | Sert à |
+| --- | --- | --- | --- | --- |
+| `map_products` | article du groupe | L'ancien code repris dans M3 (`MMOLDI`) | Aucune : un article sans correspondance est `unmatched` et signalé | Le coût groupe (tenu avec les codes de l'ancien ERP), la continuité du stock d'Apt, les ventes d'un article avant et après la bascule |
+| `map_customers` | client d'une entité | L'ancien code repris dans M3 (`OKOLDC`) | Même entité, même identifiant officiel, même raison sociale normalisée et même code postal | Les clients actifs, les ventes d'un client avant et après la bascule, le rapprochement avec le CRM |
+| `map_crm_accounts` | couple compte du CRM et client | Le code ERP enregistré dans le CRM, ancien ou nouveau (`docs/sources/03_crm.md`) | Comme pour `map_customers` | Le rattachement des comptes du CRM aux clients, sans compter les prospects comme des anomalies |
+
+Ces tables donnent à chaque article et à chaque client un **identifiant unifié** (`product_id`, `customer_id`), stable avant et après la bascule : c'est lui que portent les tables de faits et les dimensions. `dim_customer` a une ligne par client unifié ; ses attributs (nom, pays, segment, type) viennent de l'ERP, qui est la référence des clients ; le CRM n'ajoute que le compte et le commercial rattachés.
+
+**Comment les correspondances s'enchaînent, sur un exemple.** Le distributeur Dupont Négoce, client de la filiale française, existe sous trois identités :
+
+| Système | Identifiant | D'où vient le lien |
+| --- | --- | --- |
+| Ancien ERP | client `00001042` de la société `010` (table `CLIENT`) | — |
+| M3 | client `FR1042` de la division `FRA` (table `OCUSMA`) | À la bascule, M3 a recopié l'ancien code dans le champ `OKOLDC` : `OK` est le préfixe des champs de la table `OCUSMA`, `OLDC` signifie *old customer*, l'ancien code client. Ici, `OKOLDC = 00001042` |
+| CRM | compte `ACC-004512` | L'interface ERP → CRM a écrit le code ERP dans `erp_customer_code`. Ici, l'ancien code `00001042`, jamais mis à jour depuis la bascule |
+
+Le même principe vaut pour les articles (`MMOLDI` dans `MITMAS` : `MM` pour la table, `OLDI` pour *old item*, l'ancien code article) et pour les commandes reprises (`OAYREF` dans `OOHEAD` : la référence de l'ancienne commande). Ces noms de champs sont inspirés de M3 (`docs/sources/02_m3.md`).
+
+```
+Ancien ERP                    M3                              CRM
+CLIENT 00001042  <──OKOLDC──  OCUSMA FR1042                   ACC-004512
+       │                             │                        erp_customer_code = 00001042
+       └──────────────┬──────────────┘                                 │
+               map_customers                                           │
+          customer_id = FR-FR1042  <───────── map_crm_accounts ────────┘
+```
+
+Les étapes, dans l'ordre où dbt les construit :
+
+1. **`map_products` et `map_customers`** relient les deux ERP. Pour Dupont Négoce : `FR1042` a `OKOLDC = 00001042`, donc les deux fiches sont le même client (statut `certain`). Sans ancien code, la règle `probable` compare l'identifiant officiel, la raison sociale normalisée et le code postal.
+2. **L'identifiant unifié** est attribué : le code du nouvel ERP quand il existe, sinon celui de l'ancien, précédé de l'entité pour les clients (`FR-FR1042`, `ES-00002210`). Toutes les ventes de Dupont Négoce, avant et après le 7 avril, portent ainsi le même `customer_id`. Limite connue : quand une entité restée sur l'ancien ERP basculera à son tour, ses identifiants changeront ; une clé technique créée par dbt (`customer_key`) protège les modèles de ce changement.
+3. **`map_transactions`** relie les commandes reprises à la bascule (section 4 ci-dessus), en s'appuyant sur les deux tables précédentes pour comparer le client et l'article.
+4. **`map_crm_accounts`** rattache les comptes du CRM aux clients unifiés. `ACC-004512` porte l'ancien code `00001042` : il retombe, via `map_customers`, sur `FR-FR1042`. Un compte portant le nouveau code `FR1042` y retomberait aussi.
+
+**Ce que ça évite.** Sans ces tables, Dupont Négoce compterait pour deux clients (un avant, un après la bascule), sa baisse apparente de chiffre d'affaires en avril ne serait qu'un changement de code, et son compte du CRM ne serait rattaché à rien. **Ce qu'on surveille** : la part des articles, des clients et des comptes rapprochés, par statut, sur la page qualité (indicateur « taux de correspondance »).
+
 ## 5. Le journal de réconciliation
 
 Un journal mensuel, par filiale, explique le passage des totaux bruts des sources au chiffre d'affaires consolidé. C'est le pont qu'une direction informatique ou financière veut voir pour faire confiance aux chiffres.
@@ -264,7 +302,7 @@ Pour que les conclusions ne soient pas circulaires, je ne connais pas les histoi
 | `docs/02_reference_data.md` et `config/delta_plus/master_data.yml` | Le référentiel maître du groupe fictif |
 | `docs/sources/01_legacy_erp.md` et `01_legacy_erp.dbml` | Tables et colonnes de l'ancien ERP, avec leur schéma relationnel |
 | `docs/sources/02_m3.md` et `02_m3.dbml` | Tables de l'export de type M3 et correspondance avec les objets métier |
-| `docs/sources/03_crm.md` | Structure du document compte du CRM et un exemple JSON |
+| `docs/sources/03_crm.md` et `03_crm_example.json` | Structure du document compte du CRM, rapprochement avec les ERP et un exemple JSON |
 | `docs/sources/04_brazil_file.md` | Mise en page du fichier de la filiale brésilienne |
 | `docs/sources/05_budget.md` | Mise en page du budget saisi par la finance |
 | `config/delta_plus/defects.yml` | Les types d'effets et les défauts à injecter |

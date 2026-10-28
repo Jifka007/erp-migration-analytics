@@ -1,0 +1,91 @@
+{
+  "page": 3,
+  "page_size": 2,
+  "total_items": 9874,
+  "has_more": true,
+  "extracted_at": "2026-10-01T02:00:13Z",
+  "modified_since": "2026-09-30T02:00:00Z",
+  "items": [
+    {
+      "account_id": "ACC-004512",
+      "account_type": "customer",
+      "name": "DUPONT NEGOCE SAS",
+      "tax_id": "FR32412345678",
+      "sales_entity": "FR",
+      "segment": "Négoce BTP",
+      "erp_customer_code": "00001042",
+      "address": {
+        "street": "12 avenue de la Gare",
+        "postal_code": "84400",
+        "city": "Apt",
+        "country": "FR"
+      },
+      "sales_rep": { "rep_id": "U-0187", "name": "Claire Fabre" },
+      "created_at": "2019-05-14T09:12:00Z",
+      "updated_at": "2026-09-30T16:41:27Z",
+      "contacts": [
+        { "contact_id": "CT-88120", "first_name": "Paul", "last_name": "Martin", "job_title": "Acheteur EPI", "email": "p.martin@exemple-negoce.fr" },
+        { "contact_id": "CT-88121", "first_name": "Sophie", "last_name": "Roux", "job_title": "Directrice d'agence" }
+      ],
+      "visits": [
+        {
+          "visit_id": "VIS-551203",
+          "date": "2026-03-12",
+          "type": "visite",
+          "contact_ids": ["CT-88120"],
+          "product_lines_discussed": ["FALL", "HAND"],
+          "notes": "Intéressé par les antichutes à rappel automatique pour un chantier au printemps."
+        },
+        {
+          "visit_id": "VIS-560987",
+          "date": "28/09/2026",
+          "type": "téléphone",
+          "contact_ids": ["CT-88120", "CT-88121"],
+          "product_lines_discussed": []
+        }
+      ],
+      "opportunities": [
+        {
+          "opportunity_id": "OPP-120455",
+          "created_date": "2026-03-12",
+          "stage": "proposition",
+          "expected_close_date": "2026-05-31",
+          "estimated_amount": "12 000,00",
+          "currency": "EUR",
+          "lines": [
+            { "product_line": "FALL", "product_family": "Antichutes à rappel automatique", "quantity": 20 },
+            { "product_line": "HAND", "quantity": 500 }
+          ]
+        }
+      ]
+    },
+    {
+      "account_id": "ACC-019877",
+      "account_type": "prospect",
+      "name": "Bauhandel Krüger GmbH",
+      "sales_entity": "DE",
+      "segment": "builders merchant",
+      "address": {
+        "postal_code": "50667",
+        "city": "Köln",
+        "country": "Germany"
+      },
+      "sales_rep": { "rep_id": "U-0342", "name": "Jonas Weber" },
+      "created_at": "2026-06-02T08:00:00Z",
+      "updated_at": "2026-09-30T11:05:42Z",
+      "contacts": [
+        { "contact_id": "CT-90233", "first_name": "Lena", "last_name": "Krüger", "job_title": "Einkauf" }
+      ],
+      "visits": [
+        {
+          "visit_id": "VIS-559810",
+          "date": "2026-09-30",
+          "type": "visite",
+          "contact_ids": ["CT-90233"],
+          "product_lines_discussed": ["FOOT"]
+        }
+      ],
+      "opportunities": []
+    }
+  ]
+}
