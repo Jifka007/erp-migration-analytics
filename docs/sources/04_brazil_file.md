@@ -42,7 +42,7 @@ Une seule feuille, `Vendas`. Comme dans beaucoup de fichiers préparés à la ma
 | `Descrição` | Libellé | Texte | `product_name` |
 | `Referência Delta Plus` | Pour un produit du groupe : sa référence groupe ; vide pour un produit local, et parfois vide à tort | Texte | sert à `map_products` |
 | `Unidade` | Unité de vente : `PAR` (paire), `PC` (pièce), `CX` (boîte) | Texte | sert à la conversion |
-| `Quantidade` | Quantité, en unité de vente ; positive même pour une devolução | Nombre | `quantity` (signée selon `Tipo`, convertie en unité de base) |
+| `Quantidade` | Quantité, en unité de vente ; positive même pour une devolução | Nombre | `invoiced_quantity` (signée selon `Tipo`, convertie en unité de base) |
 | `Valor líquido (R$)` | Montant net hors taxes, en réals ; positif même pour une devolução | Texte au format brésilien (`1.234,56`) ou nombre | `net_amount_local` (signé selon `Tipo`) |
 | `Custo unitário (R$)` | Coût moyen unitaire de la filiale, en réals | Texte au format brésilien ou nombre | utilisé **seulement pour les produits locaux** |
 

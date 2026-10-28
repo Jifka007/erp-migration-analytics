@@ -112,7 +112,7 @@ C'est la seule source du coût utilisé pour la marge et la valeur du stock (doc
 | `LCLIG` | NUMERIC(3,0) | Numéro de ligne | `order_line_number` |
 | `LCART` | CHAR(15) | Code article | `product_code` |
 | `LCQTE` | NUMERIC(11,3) | Quantité commandée, en unité de vente | `ordered_quantity` (convertie en unité de base) |
-| `LCPRIX` | NUMERIC(11,4) | Prix unitaire net, en devise de la commande, par unité de vente | `net_unit_price_local` |
+| `LCPRIX` | NUMERIC(11,4) | Prix unitaire net, en devise de la commande, par unité de vente | `net_unit_price_amount_local` |
 | `LCREM` | NUMERIC(5,2) | Remise en pourcentage (`12.50` = 12,5 %), déjà déduite du prix net | `discount_rate` (divisé par 100) |
 | `LCDTDM` | NUMERIC(7,0) | Date demandée par le client | `requested_date` |
 | `LCDTPR` | NUMERIC(7,0) | Date promise **actuelle** : écrasée à chaque report | `promised_date` |
@@ -172,7 +172,7 @@ C'est `BLCDE` et `BLCLIG` qui relient une expédition à sa ligne de commande : 
 | `FLBL` | NUMERIC(7,0) | Bon de livraison facturé ; `0` pour un avoir sans retour (ristourne) | `delivery_number` |
 | `FLBLLG` | NUMERIC(3,0) | Ligne du bon de livraison facturée | `delivery_line_number` |
 | `FLART` | CHAR(15) | Code article | `product_code` |
-| `FLQTE` | NUMERIC(11,3) | Quantité, en unité de vente, **toujours positive** | `quantity` (signée selon `FETYPE`, convertie en unité de base) |
+| `FLQTE` | NUMERIC(11,3) | Quantité, en unité de vente, **toujours positive** | `invoiced_quantity` (signée selon `FETYPE`, convertie en unité de base) |
 | `FLMTHT` | NUMERIC(13,2) | Montant hors taxes en devise, **toujours positif** | `net_amount_local` (signé selon `FETYPE`) |
 | `FLPRV` | NUMERIC(11,4) | Prix de revient unitaire enregistré par la société | **jamais utilisé** |
 

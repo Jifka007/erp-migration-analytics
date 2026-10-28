@@ -56,7 +56,7 @@ La clé reprend celle de la ligne de commande : c'est elle qui relie l'expéditi
 
 *3. `fct_sales_lines` : une ligne par ligne de facture ou d'avoir.* Une facture par expédition, puis un avoir pour 5 paires abîmées.
 
-| entity_id | invoice_number | invoice_line_number | source_system | delivery_number | invoice_date | quantity | net_amount_eur | cost_amount_eur | credit_note_type |
+| entity_id | invoice_number | invoice_line_number | source_system | delivery_number | invoice_date | invoiced_quantity | net_amount_eur | cost_amount_eur | credit_note_type |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | FR | F-5001 | 1 | m3 | L-901 | 19 mai | 60 | 600 | 252 | — |
 | FR | F-5043 | 1 | m3 | L-934 | 29 mai | 40 | 400 | 168 | — |
@@ -121,6 +121,8 @@ Chaque indicateur est rattaché à une seule table de faits. C'est le critère d
 
 - **Quantités** : toujours exprimées en unité de base (paire ou pièce), converties dès la couche de staging.
 - **Devises** : taux moyens mensuels calculés à partir des taux de référence quotidiens de la BCE. Le dirham des Émirats (AED), absent des taux BCE, est converti via le dollar, grâce à son taux d'arrimage fixe.
+- **Avoirs** : quantités et montants **négatifs** dans les tables de faits, quel que soit le format de la source (positifs avec un type de document dans l'ancien ERP et le fichier brésilien, négatifs dans M3).
+- **Codes des sources** : chaque source a ses propres codes d'entité, de site, de famille, de segment et d'unité (`030` ou `FRA` pour une entité, `APT` ou `DES` pour un site…). Ils sont ramenés une seule fois à ceux du référentiel (document 02) par des tables de correspondance tenues dans dbt (*seeds*), testées pour que chaque code trouve sa correspondance.
 - **Ventes entre filiales** : repérées par un indicateur sur les lignes de commande et de vente (`is_intercompany`), et exclues du CA consolidé. Un client qui est lui-même une entité du groupe le dit dans le référentiel client, avec l'entité correspondante : c'est ainsi qu'on connaît l'entité qui achète.
 
 **Les règles de calcul complémentaires :**
@@ -128,7 +130,7 @@ Chaque indicateur est rattaché à une seule table de faits. C'est le critère d
 - **Le pont du carnet de commandes**, contrôle de cohérence mensuel : carnet de fin de mois = carnet de début de mois + prises de commandes − montants expédiés − annulations. Un écart signale un problème de données. Il évite aussi un piège classique : les commandes du mois moins le CA du mois ne donnent pas les commandes non livrées, car le CA d'un mois vient aussi de commandes plus anciennes.
 - **Le stock est une mesure semi-additive.** On additionne les stocks de plusieurs articles ou plateformes à une même date, mais jamais les fins de mois entre elles. Sur une période, on prend la valeur de fin de période, ou une moyenne des fins de mois.
 - **La valeur du stock = quantité × coût unitaire.** Le coût unitaire est celui que fournit l'ERP pour chaque article et chaque mois, supposé calculé au coût moyen pondéré : la moyenne des coûts d'achat, pondérée par les quantités achetées. Le projet l'utilise tel quel ; le recalculer à partir des achats fournisseurs est une extension. Valeur nette = valeur brute − dépréciation.
-- **Un seul coût unitaire pour tout le projet : le coût groupe de l'article.** La filiale qui revend une marchandise achetée à une plateforme du groupe enregistre dans son ERP un coût égal au prix interne (6 € dans l'exemple ci-dessous) : ce coût n'est jamais utilisé. La marge brute comme la valeur du stock utilisent le coût groupe de l'article pour le mois, tel que le fournit l'ERP (dans l'ancien ERP, la table du coût groupe mensuel ; la fiche article ne garde que le coût actuel).
+- **Un seul coût unitaire pour tout le projet : le coût groupe de l'article.** La filiale qui revend une marchandise achetée à une plateforme du groupe enregistre dans son ERP un coût égal au prix interne (6 € dans l'exemple ci-dessous) : ce coût n'est jamais utilisé. La marge brute comme la valeur du stock utilisent le coût groupe de l'article pour le mois, tel que le fournit l'ERP (dans l'ancien ERP, la table du coût groupe mensuel ; la fiche article ne garde que le coût actuel). Seule exception : un produit **local** de la filiale brésilienne, qui n'a pas de coût groupe ; son coût est celui de la filiale, qui est alors le coût d'origine pour le groupe (`docs/sources/04_brazil_file.md`).
 - **Le stock est valorisé au coût d'origine pour le groupe**, c'est-à-dire au coût d'achat ou de fabrication auprès de l'extérieur, jamais au prix de vente interne. Une marchandise vendue 6 € par la plateforme chinoise à la filiale allemande, qui l'avait payée 4 € à un fournisseur, reste à 4 € dans le stock du groupe : la marge interne de 2 € n'existe pour le groupe qu'une fois la marchandise revendue à un client extérieur.
 - **Le stock se suit en unités et en valeur.** La valeur peut bouger sans que les quantités changent (coûts d'achat, change, mix des articles, dépréciations) : les deux mesures sont toujours affichées ensemble.
 
