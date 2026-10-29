@@ -1,0 +1,213 @@
+# Catalogue des types d'effets que le moteur de scénarios sait produire.
+#
+# Ce fichier est PUBLIC : il dit ce que le moteur sait faire, pas ce qu'il
+# a fait. Les histoires réellement cachées dans les données (quels effets,
+# où, quand, avec quelle ampleur) sont dans le fichier scellé, hors de Git,
+# dont seule l'empreinte SHA-256 est commitée (docs/01, section 6).
+#
+# Un effet se décrit en répondant à cinq questions :
+#   quoi      -> effect_type (un type de ce catalogue)
+#   où        -> scope (le périmètre touché)
+#   quand     -> start_date, end_date
+#   combien   -> les paramètres propres au type (parameters ci-dessous)
+#   comment   -> shape : step (d'un coup) ou ramp (progressif)
+#
+# Le générateur fabrique les données en trois couches :
+#   1. la base : tendance, saisonnalité, hasard ;
+#   2. les effets de ce catalogue, posés sur la base ;
+#   3. les défauts de qualité (defects.yml), appliqués à la fin.
+#
+# Chaque type précise :
+#   layer             l'étape de la génération qu'il modifie
+#   parameters        les paramètres de « combien » qu'il attend
+#   expected_traces   les indicateurs (docs/01, section 2) où il doit se voir
+#   detection_level   le niveau d'agrégation minimal où il doit ressortir du bruit
+#   priority          core (indispensable aux questions métier) ou extension
+
+# -------------------------------------------------------------------
+# Champs communs à tous les effets du fichier scellé
+# -------------------------------------------------------------------
+common_fields:
+  effect_id: identifiant de l'effet (E01, E02…)
+  effect_type: un type de ce catalogue
+  scope: >
+    périmètre, avec un ou plusieurs de ces champs, codes du référentiel :
+    entity_id, warehouse_id, product_line_id, product_family_id, product_id,
+    customer_id, customer_segment_id, supplier_id
+  start_date: premier jour de l'effet
+  end_date: dernier jour de l'effet (null = jusqu'à la fin de l'historique)
+  shape: step ou ramp
+  ramp_months: pour une rampe, nombre de mois pour atteindre l'ampleur finale
+  derived_from: >
+    identifiant d'un autre effet dont celui-ci découle ; son ampleur est
+    alors calculée par le moteur, jamais saisie (une même réalité n'est
+    saisie qu'une fois)
+  lag_months: >
+    décalage par rapport à l'effet d'origine, en mois ; négatif quand
+    l'effet induit le précède (des achats avant les ventes, par exemple)
+  is_deliberately_weak: >
+    vrai si l'effet est volontairement sous le seuil de détection : la
+    bonne conclusion est alors « soupçonné, mais non démontrable »
+
+# -------------------------------------------------------------------
+# Les types d'effets
+# -------------------------------------------------------------------
+effect_types:
+
+  - effect_type: volume_change
+    description: >
+      Les quantités commandées du périmètre augmentent ou baissent, à prix
+      inchangés. C'est le type le plus simple : la baisse d'un pays, d'une
+      gamme, d'un segment ou d'un gros client.
+    layer: orders
+    parameters:
+      magnitude: variation relative des quantités (-0.15 = -15 %)
+    expected_traces: [chiffre d'affaires, prises de commandes, écart au budget, croissance organique]
+    detection_level: trimestre, au niveau du périmètre
+    priority: core
+
+  - effect_type: customer_attrition
+    description: >
+      Une part des clients du périmètre cesse de commander, les autres
+      continuent comme avant. Le CA baisse par le nombre de clients, pas
+      par le volume de chacun : c'est ce qui le distingue de volume_change.
+    layer: orders
+    parameters:
+      lost_customer_share: part des clients du périmètre perdus (0.10 = 10 %)
+    expected_traces: [clients actifs, chiffre d'affaires, prises de commandes]
+    detection_level: semestre, au niveau du périmètre
+    priority: core
+
+  - effect_type: product_mix_shift
+    description: >
+      Dans le périmètre, la part d'un ensemble de produits change sans que
+      le volume total change. Exemple : la part des produits du groupe dans
+      les ventes du Brésil (son intégration).
+    layer: orders
+    parameters:
+      target_products: les produits dont la part change (scope produit, ou « group » / « local »)
+      share_start: part au début de l'effet (0.20)
+      share_end: part à la fin de l'effet (0.35)
+    expected_traces: [part des produits du groupe, marge brute, ventes internes (effet induit)]
+    detection_level: trimestre, au niveau de l'entité
+    priority: core
+
+  - effect_type: demand_transfer
+    description: >
+      Une partie de la demande passe d'une gamme, d'une famille ou d'une
+      référence à une autre ; le total reste stable. Exemple : des clients
+      qui délaissent un antichute au profit d'un modèle plus récent.
+    layer: orders
+    parameters:
+      from_scope: le périmètre produit qui perd la demande
+      to_scope: le périmètre produit qui la reçoit
+      transfer_share: part de la demande de from_scope transférée
+    expected_traces: [chiffre d'affaires par gamme ou famille, marge brute (mix), stock dormant sur from_scope]
+    detection_level: trimestre, au niveau de la famille
+    priority: core
+
+  - effect_type: price_change
+    description: >
+      Le prix net de vente du périmètre change à volume stable, par une
+      hausse des remises ou une baisse du prix catalogue. Le CA et la
+      marge baissent alors que les quantités tiennent.
+    layer: invoices
+    parameters:
+      net_price_change: variation relative du prix net (-0.05 = -5 %)
+      mechanism: discount (via la remise) ou list_price (via le prix catalogue)
+    expected_traces: [chiffre d'affaires, marge brute (effet prix), prix moyen]
+    detection_level: trimestre, au niveau de la gamme
+    priority: core
+
+  - effect_type: cost_change
+    description: >
+      Le coût groupe des articles du périmètre change (un fournisseur
+      augmente ses prix, une matière première renchérit), sans que les
+      prix de vente suivent. Le CA ne bouge pas, la marge baisse.
+    layer: costs
+    parameters:
+      cost_change: variation relative du coût unitaire (+0.08 = +8 %)
+    expected_traces: [marge brute (effet coût), valeur du stock]
+    detection_level: trimestre, au niveau de la gamme ou du fournisseur
+    priority: core
+
+  - effect_type: seasonal_anomaly
+    description: >
+      La saisonnalité d'un périmètre s'écarte de la normale sur quelques
+      mois (un hiver doux qui fait chuter les gants d'hiver). Le budget,
+      fixé avant, ne l'a pas prévu.
+    layer: orders
+    parameters:
+      affected_months: les mois touchés
+      magnitude: variation relative des quantités sur ces mois
+    expected_traces: [écart au budget, chiffre d'affaires, couverture de stock]
+    detection_level: mois, au niveau de la gamme
+    priority: extension
+
+  - effect_type: fulfilment_delay
+    description: >
+      Les expéditions du périmètre prennent du retard : plus de lignes
+      expédiées après la date promise, plus de reliquats, et une partie
+      des reliquats finit annulée. Cause typique : un fournisseur qui
+      livre en retard les plateformes (scope supplier_id).
+    layer: shipments
+    parameters:
+      late_share: part supplémentaire de lignes expédiées en retard
+      average_delay_days: retard moyen de ces lignes, en jours
+      partial_share: part supplémentaire de lignes expédiées en plusieurs fois
+      cancellation_share: part des reliquats finalement annulés
+    expected_traces: [OTIF, carnet de commandes, écart de promesse]
+    detection_level: mois, au niveau du site d'expédition
+    priority: core
+
+  - effect_type: service_disruption
+    description: >
+      Pendant une fenêtre de temps, les expéditions d'un site sont
+      bloquées ou ralenties, puis rattrapées. Exemple : l'interruption
+      autour de la bascule vers M3. L'effet dit si le service s'est
+      réellement dégradé, et de combien ; la baisse de l'OTIF due au
+      seul changement de règle de mesure, elle, n'est pas un effet.
+    layer: shipments
+    parameters:
+      shipment_capacity: part des expéditions normales maintenue pendant la fenêtre (0.40 = 40 %)
+      catch_up_weeks: nombre de semaines pour rattraper le retard
+    expected_traces: [OTIF (comparable), carnet de commandes, délai d'expédition]
+    detection_level: semaine, au niveau du site d'expédition
+    priority: core
+
+  - effect_type: localized_stockout
+    description: >
+      Une plateforme manque d'un article alors que l'autre en a, ou que le
+      stock du groupe est élevé. Les filiales qu'elle approvisionne voient
+      leur service se dégrader sur cet article.
+    layer: stock
+    parameters:
+      stockout_weeks: durée de la rupture, en semaines
+    expected_traces: [OTIF par site et par article, stock par plateforme]
+    detection_level: mois, au niveau de l'article et du site
+    priority: extension
+
+  - effect_type: dormant_stock
+    description: >
+      Des articles d'une plateforme continuent d'être réapprovisionnés
+      alors que leurs ventes s'effondrent, ou reçoivent un achat trop
+      important. Le stock s'accumule sans sortir.
+    layer: stock
+    parameters:
+      sales_drop: baisse relative des sorties (-0.80 = -80 %)
+      excess_receipt_months: réception supplémentaire, en mois de ventes normales
+    expected_traces: [stock dormant, couverture de stock, dépréciation, valeur du stock]
+    detection_level: trimestre, au niveau de l'article et de la plateforme
+    priority: core
+
+  - effect_type: intercompany_push
+    description: >
+      Une plateforme envoie à une filiale plus de marchandise que celle-ci
+      n'en revend : ses ventes internes montent pendant que les ventes
+      extérieures de la filiale stagnent (docs/01, section 2).
+    layer: orders
+    parameters:
+      magnitude: variation relative des ventes internes de la plateforme vers la filiale
+    expected_traces: [ventes internes, comparées aux ventes extérieures de la filiale]
+    detection_level: trimestre, au niveau du couple plateforme et filiale
+    priority: core

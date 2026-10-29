@@ -1,0 +1,338 @@
+# Catalogue des défauts de qualité que le générateur sait injecter.
+#
+# Ce fichier est PUBLIC : il dit quels défauts PEUVENT exister. Les taux
+# réellement appliqués aux défauts aléatoires sont dans le fichier scellé,
+# comme les histoires cachées. Ils sont découverts à l'aveugle par la page
+# qualité, puis comparés aux taux injectés à la révélation : c'est la
+# preuve que la chaîne détecte ce qu'elle doit détecter.
+#
+# Un type du catalogue peut avoir un taux nul dans le fichier scellé :
+# le catalogue dit ce qui est possible, pas ce qui est arrivé.
+#
+# Pour chaque défaut :
+#   defect_id           identifiant (source + numéro)
+#   source              legacy_erp, m3, crm, brazil_file, budget, fx_rates
+#   target              table et colonne touchées
+#   kind                systematic : toujours présent, c'est le format de la
+#                         source (pas de taux) ;
+#                       random : présent sur une part des lignes (taux scellé)
+#   description         le défaut, tel qu'on le rencontrerait
+#   staging_treatment   ce que la staging en fait
+#   detection           le test dbt, le contrôle ou l'indicateur de la page
+#                         qualité qui le révèle
+
+defect_types:
+
+  # -----------------------------------------------------------------
+  # Ancien ERP (docs/sources/01_legacy_erp.md)
+  # -----------------------------------------------------------------
+  - defect_id: LEG01
+    source: legacy_erp
+    target: "codes (CHAR)"
+    kind: systematic
+    description: "Codes complétés par des espaces à droite (CHAR de longueur fixe)"
+    staging_treatment: "Suppression des espaces"
+    detection: "Test de correspondance des codes avec les seeds"
+
+  - defect_id: LEG02
+    source: legacy_erp
+    target: "dates (CYYMMDD)"
+    kind: systematic
+    description: "Dates au format numérique CYYMMDD, 0 pour une date absente"
+    staging_treatment: "Conversion en date, 0 converti en NULL"
+    detection: "Test de dates valides et dans la période de l'historique"
+
+  - defect_id: LEG03
+    source: legacy_erp
+    target: "FACENT.FETYPE, FACLIG.FLQTE, FACLIG.FLMTHT"
+    kind: systematic
+    description: "Avoirs en quantités et montants positifs, distingués par leur type"
+    staging_treatment: "Signés selon FETYPE"
+    detection: "Contrôle du CA d'un mois connu contre le total de référence"
+
+  - defect_id: LEG04
+    source: legacy_erp
+    target: "CDELIG, BLVLIG, FACLIG"
+    kind: random
+    description: "Lignes en double (même ligne exportée deux fois)"
+    staging_treatment: "Dédoublonnage sur la clé complète de la ligne"
+    detection: "Test unique sur la clé ; nombre de doublons sur la page qualité"
+
+  - defect_id: LEG05
+    source: legacy_erp
+    target: "CDELIG, BLVLIG, FACLIG"
+    kind: random
+    description: "Lignes orphelines, sans en-tête correspondant"
+    staging_treatment: "Conservées et signalées, jamais supprimées en silence"
+    detection: "Test relationships vers l'en-tête ; liste sur la page qualité"
+
+  - defect_id: LEG06
+    source: legacy_erp
+    target: "codes article et client des lignes"
+    kind: random
+    description: "Code article ou client vide, ou absent du référentiel"
+    staging_treatment: "Ligne gardée avec un statut unmatched"
+    detection: "Taux de correspondance sur la page qualité"
+
+  - defect_id: LEG07
+    source: legacy_erp
+    target: "CLIENT"
+    kind: random
+    description: "Fiche client d'une entité du groupe non marquée intragroupe"
+    staging_treatment: "Repérée par la liste des entités du groupe (seed) et l'identifiant officiel"
+    detection: "Contrôle des ventes internes ; écart dans le journal de réconciliation"
+
+  # -----------------------------------------------------------------
+  # M3 (docs/sources/02_m3.md)
+  # -----------------------------------------------------------------
+  - defect_id: M3_01
+    source: m3
+    target: "OCUSMA, MITMAS, OOHEAD"
+    kind: random
+    description: "Enregistrements de test laissés dans la production (client ou article « TEST »)"
+    staging_treatment: "Exclus par une liste d'exclusion tenue dans un seed"
+    detection: "Ligne « tests et rejets » du journal de réconciliation"
+
+  - defect_id: M3_02
+    source: m3
+    target: "MITMAS.MMOLDI"
+    kind: random
+    description: "Ancien code article non repris à la bascule"
+    staging_treatment: "Article unmatched dans map_products, sans coût ni historique"
+    detection: "Taux de correspondance des articles"
+
+  - defect_id: M3_03
+    source: m3
+    target: "OCUSMA.OKOLDC"
+    kind: random
+    description: "Ancien code client non repris à la bascule"
+    staging_treatment: "Règle probable (identifiant officiel, raison sociale normalisée, code postal)"
+    detection: "Taux de correspondance des clients, par statut"
+
+  - defect_id: M3_04
+    source: m3
+    target: "OOHEAD.OAYREF"
+    kind: random
+    description: "Ancien numéro de commande non repris pour une commande reprise"
+    staging_treatment: "Règle probable de map_transactions (client, article, reste à livrer, date demandée)"
+    detection: "Doublons de bascule, par statut de rapprochement"
+
+  - defect_id: M3_05
+    source: m3
+    target: "MITTRA, MITBAL"
+    kind: random
+    description: "Mouvement de stock manquant ; le stock reconstruit diffère du solde de MITBAL"
+    staging_treatment: "Écart gardé et signalé, le solde n'est pas corrigé en silence"
+    detection: "Contrôle stock reconstruit contre MBSTQT"
+
+  # -----------------------------------------------------------------
+  # CRM (docs/sources/03_crm.md)
+  # -----------------------------------------------------------------
+  - defect_id: CRM01
+    source: crm
+    target: "fichiers d'extraction"
+    kind: systematic
+    description: "Un même compte présent dans plusieurs fichiers, une fois par modification"
+    staging_treatment: "Dernière version par account_id (updated_at le plus récent)"
+    detection: "Test unique sur crm_account_id après dédoublonnage"
+
+  - defect_id: CRM02
+    source: crm
+    target: "comptes"
+    kind: random
+    description: "Comptes en double créés à la main (même entreprise, deux account_id)"
+    staging_treatment: "Rattachés au même client par map_crm_accounts"
+    detection: "Nombre de clients rattachés à plusieurs comptes"
+
+  - defect_id: CRM03
+    source: crm
+    target: "erp_customer_code"
+    kind: random
+    description: "Code ERP ancien, faux, sans zéros de tête (1042) ou avec des espaces"
+    staging_treatment: "Normalisation, puis correspondance par l'ancien code ou la règle probable"
+    detection: "Taux de correspondance des comptes clients"
+
+  - defect_id: CRM04
+    source: crm
+    target: "account_type, tax_id, contacts.email, contacts.phone, visits.notes"
+    kind: random
+    description: "Champs facultatifs absents"
+    staging_treatment: "NULL ; account_type déduit de l'historique (opportunité gagnée)"
+    detection: "Taux de remplissage par champ"
+
+  - defect_id: CRM05
+    source: crm
+    target: "segment"
+    kind: random
+    description: "Segment en texte libre, dans plusieurs langues et orthographes"
+    staging_treatment: "Seed de correspondance vers les segments du groupe"
+    detection: "Test : chaque libellé trouve un segment"
+
+  - defect_id: CRM06
+    source: crm
+    target: "visits.date"
+    kind: random
+    description: "Dates tantôt YYYY-MM-DD, tantôt DD/MM/YYYY selon l'écran de saisie"
+    staging_treatment: "Conversion selon le format reconnu"
+    detection: "Test de dates valides"
+
+  - defect_id: CRM07
+    source: crm
+    target: "opportunities.estimated_amount"
+    kind: random
+    description: "Montant en texte au format local (\"12 000,00\") au lieu d'un nombre"
+    staging_treatment: "Conversion numérique"
+    detection: "Test de valeurs non nulles après conversion"
+
+  - defect_id: CRM08
+    source: crm
+    target: "address.country"
+    kind: random
+    description: "Pays en toutes lettres (Germany) au lieu du code ISO"
+    staging_treatment: "Seed de correspondance vers le code ISO"
+    detection: "Test de codes pays valides"
+
+  - defect_id: CRM09
+    source: crm
+    target: "status, merged_into"
+    kind: random
+    description: "Comptes archivés ou fusionnés avec un doublon"
+    staging_treatment: "Exclus du rapprochement, ou redirigés vers le compte cible"
+    detection: "Nombre de comptes par statut"
+
+  # -----------------------------------------------------------------
+  # Fichier du Brésil (docs/sources/04_brazil_file.md)
+  # -----------------------------------------------------------------
+  - defect_id: BR01
+    source: brazil_file
+    target: "mise en page"
+    kind: systematic
+    description: "Lignes de titre au-dessus du tableau, ligne Total en bas"
+    staging_treatment: "Lecture à partir de la ligne 4 ; Total exclu et utilisé comme contrôle"
+    detection: "Somme des lignes égale à la ligne Total"
+
+  - defect_id: BR02
+    source: brazil_file
+    target: "Tipo, Quantidade, Valor líquido"
+    kind: systematic
+    description: "Devoluções (retours) en valeurs positives"
+    staging_treatment: "Signées selon Tipo"
+    detection: "Contrôle du total mensuel"
+
+  - defect_id: BR03
+    source: brazil_file
+    target: "Data de emissão"
+    kind: random
+    description: "Dates en texte DD/MM/AAAA ou en date Excel"
+    staging_treatment: "Conversion selon le type"
+    detection: "Test de dates valides"
+
+  - defect_id: BR04
+    source: brazil_file
+    target: "Valor líquido, Custo unitário"
+    kind: random
+    description: "Montants en texte au format brésilien (1.234,56) au lieu d'un nombre"
+    staging_treatment: "Conversion numérique"
+    detection: "Test de valeurs non nulles après conversion"
+
+  - defect_id: BR05
+    source: brazil_file
+    target: "Unidade"
+    kind: random
+    description: "Quantités en boîtes (CX) au lieu de l'unité de base"
+    staging_treatment: "Conversion par seed_brazil_products"
+    detection: "Test : chaque unité a une conversion"
+
+  - defect_id: BR06
+    source: brazil_file
+    target: "fichiers mensuels"
+    kind: random
+    description: "Mois manquant, ou fichier envoyé deux fois"
+    staging_treatment: "Contrôle d'un fichier et un seul par mois ; doublon détecté par nom et nota fiscal"
+    detection: "Contrôle de complétude des mois"
+
+  - defect_id: BR07
+    source: brazil_file
+    target: "fichiers mensuels"
+    kind: random
+    description: "Mois renvoyé corrigé (vendas_2026_03_v2.xlsx)"
+    staging_treatment: "La version la plus récente remplace l'ancienne, ligne à ligne"
+    detection: "Liste des mois corrigés et de l'écart entre versions"
+
+  - defect_id: BR08
+    source: brazil_file
+    target: "Tipo"
+    kind: random
+    description: "Notas fiscais annulées (Cancelada) présentes dans le fichier"
+    staging_treatment: "Exclues du CA, comptées et listées"
+    detection: "Nombre et montant des notas annulées"
+
+  - defect_id: BR09
+    source: brazil_file
+    target: "Referência Delta Plus"
+    kind: random
+    description: "Référence groupe vide à tort ou fausse pour un produit du groupe"
+    staging_treatment: "seed_brazil_products tenu à la main (statut probable)"
+    detection: "Taux de correspondance des produits du Brésil"
+
+  # -----------------------------------------------------------------
+  # Budget (docs/sources/05_budget.md)
+  # -----------------------------------------------------------------
+  - defect_id: BUD01
+    source: budget
+    target: "mise en page"
+    kind: systematic
+    description: "Format large, un mois par colonne, un onglet par année"
+    staging_treatment: "Dépivotage"
+    detection: "Total annuel identique avant et après dépivotage"
+
+  - defect_id: BUD02
+    source: budget
+    target: "Filiale, Gamme"
+    kind: random
+    description: "Noms en toutes lettres, parfois mal orthographiés (Allemangne)"
+    staging_treatment: "Seed de correspondance"
+    detection: "Test : chaque ligne trouve une filiale et une gamme"
+
+  - defect_id: BUD03
+    source: budget
+    target: "cellules de mois"
+    kind: random
+    description: "Cellules vides (mois non budgétés)"
+    staging_treatment: "Zéro, et signalé : un budget manquant n'est pas un budget nul"
+    detection: "Liste des cellules vides"
+
+  - defect_id: BUD04
+    source: budget
+    target: "cellules de mois"
+    kind: random
+    description: "Nombres saisis en texte avec des espaces (285 000)"
+    staging_treatment: "Conversion numérique"
+    detection: "Test de valeurs non nulles après conversion"
+
+  - defect_id: BUD05
+    source: budget
+    target: "lignes"
+    kind: random
+    description: "Ligne de sous-total ajoutée par la finance"
+    staging_treatment: "Exclue, utilisée comme contrôle"
+    detection: "Somme des lignes égale au sous-total"
+
+  - defect_id: BUD06
+    source: budget
+    target: "onglets"
+    kind: random
+    description: "Onglet renommé ou ajouté en cours d'année (Budget 2026 révisé)"
+    staging_treatment: "Liste des onglets attendus fixée ; un onglet inattendu fait échouer le chargement"
+    detection: "Échec explicite du chargement"
+
+  # -----------------------------------------------------------------
+  # Taux de change BCE
+  # -----------------------------------------------------------------
+  - defect_id: FX01
+    source: fx_rates
+    target: "taux quotidiens"
+    kind: systematic
+    description: "Pas de cotation les week-ends et jours fériés ; pas de taux AED"
+    staging_treatment: "Moyenne mensuelle des jours cotés ; AED via le dollar (arrimage fixe)"
+    detection: "Test : un taux par devise et par mois"
