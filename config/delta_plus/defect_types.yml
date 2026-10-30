@@ -20,6 +20,11 @@
 #   staging_treatment   ce que la staging en fait
 #   detection           le test dbt, le contrôle ou l'indicateur de la page
 #                         qualité qui le révèle
+#
+# Les défauts de plausibilité (P01 à P12) touchent plusieurs sources :
+# leur champ source en donne la liste, et un champ priority dit s'ils
+# sont au cœur du projet ou en extension. Fiche de référence (Drive) :
+# « Fiche – Défauts de plausibilité selon les sources ».
 
 defect_types:
 
@@ -336,3 +341,114 @@ defect_types:
     description: "Pas de cotation les week-ends et jours fériés ; pas de taux AED"
     staging_treatment: "Moyenne mensuelle des jours cotés ; AED via le dollar (arrimage fixe)"
     detection: "Test : un taux par devise et par mois"
+
+  # -----------------------------------------------------------------
+  # Plausibilité : valeurs bien formées mais impossibles ou improbables
+  # -----------------------------------------------------------------
+  - defect_id: P01
+    source: "legacy_erp, brazil_file"
+    target: "lignes de commande et de vente : quantité"
+    kind: random
+    priority: core
+    description: "Quantité négative ou nulle sur une ligne qui n'est ni un avoir ni une ligne annulée"
+    staging_treatment: "Quantité négative hors avoir : ligne écartée et journalisée ; quantité nulle acceptée si la ligne est annulée, sinon écartée et journalisée"
+    detection: "Test : quantité > 0, sauf avoir ou ligne annulée"
+
+  - defect_id: P02
+    source: "legacy_erp, brazil_file"
+    target: "commandes : date de commande"
+    kind: random
+    priority: core
+    description: "Date de commande dans le futur (faute de frappe sur l'année : 2062 au lieu de 2026)"
+    staging_treatment: "Ligne écartée et journalisée"
+    detection: "Test : date de commande <= date d'extraction"
+
+  - defect_id: P03
+    source: "legacy_erp, m3"
+    target: "expéditions : date d'expédition"
+    kind: random
+    priority: core
+    description: "Expédition datée avant la commande ; dans M3, commande reprise dont la date de commande a été réécrite à la date de bascule"
+    staging_treatment: "Commande reprise : date d'origine de l'ancien ERP ; sinon ligne écartée et journalisée"
+    detection: "Test : date d'expédition >= date de commande"
+
+  - defect_id: P04
+    source: "legacy_erp, m3, brazil_file"
+    target: "lignes de vente : prix unitaire"
+    kind: random
+    priority: core
+    description: "Prix unitaire aberrant (facteur 100 ou 1000, virgule oubliée ou montant mal lu)"
+    staging_treatment: "Ligne écartée et journalisée"
+    detection: "Test : prix net / prix catalogue du même article entre 0,3 et 3"
+
+  - defect_id: P05
+    source: legacy_erp
+    target: "lignes de commande : remise"
+    kind: random
+    priority: core
+    description: "Remise négative ou supérieure à 100 %"
+    staging_treatment: "Ligne écartée et journalisée ; remise de 100 % acceptée avec un drapeau"
+    detection: "Test : remise entre 0 et 100 %"
+
+  - defect_id: P06
+    source: "legacy_erp, m3"
+    target: "expéditions : quantité expédiée"
+    kind: random
+    priority: core
+    description: "Quantité expédiée supérieure à la quantité commandée, au-delà de la tolérance de surlivraison"
+    staging_treatment: "Acceptée jusqu'à 5 % de surlivraison ; au-delà, ligne écartée et journalisée"
+    detection: "Test : expédié <= commandé x 1,05"
+
+  - defect_id: P07
+    source: "legacy_erp, m3"
+    target: "coûts : coût unitaire groupe"
+    kind: random
+    priority: core
+    description: "Coût unitaire nul ou manquant, souvent sur un article créé à la bascule"
+    staging_treatment: "Coût du dernier mois connu pour l'article, avec un drapeau ; sans coût connu, marge non calculée"
+    detection: "Test : coût unitaire > 0 ; page qualité : part du CA sans coût"
+
+  - defect_id: P08
+    source: "legacy_erp, brazil_file"
+    target: "lignes de vente : montant"
+    kind: random
+    priority: core
+    description: "Montant de ligne différent de quantité x prix net, au-delà de l'arrondi"
+    staging_treatment: "Montant recalculé ; écart journalisé"
+    detection: "Test : |montant - quantité x prix net| <= 0,01 par unité"
+
+  - defect_id: P09
+    source: "legacy_erp, m3"
+    target: "lignes de commande : date promise"
+    kind: random
+    priority: core
+    description: "Date promise antérieure à la date de commande ; dans M3, commande reprise"
+    staging_treatment: "Ligne exclue de l'OTIF et journalisée"
+    detection: "Test : date promise >= date de commande"
+
+  - defect_id: P10
+    source: "legacy_erp, brazil_file"
+    target: "lignes de vente : devise"
+    kind: random
+    priority: core
+    description: "Devise incohérente avec l'entité (montant en USD sur une ligne brésilienne)"
+    staging_treatment: "Conversion avec le taux de la devise indiquée ; devise inconnue : ligne écartée et journalisée"
+    detection: "Test : devise de la ligne = devise de l'entité, ou liste des exceptions"
+
+  - defect_id: P11
+    source: legacy_erp
+    target: "lignes de vente : article"
+    kind: random
+    priority: extension
+    description: "Article vendu après sa date de fin de commercialisation, hors déstockage"
+    staging_treatment: "Ligne gardée avec un drapeau"
+    detection: "Page qualité : ventes d'articles en fin de vie, par mois"
+
+  - defect_id: P12
+    source: "legacy_erp, m3"
+    target: "stock : stock reconstruit par les mouvements"
+    kind: random
+    priority: extension
+    description: "Stock négatif après cumul des mouvements (réception manquante ou saisie en retard)"
+    staging_treatment: "Stock gardé tel quel avec un drapeau ; valorisation calée sur le solde de stock quand il existe"
+    detection: "Test : stock reconstruit >= 0 ; écart au solde de stock"
