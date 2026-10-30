@@ -215,3 +215,56 @@ def apply_intercompany_push(
     les ventes internes aux ventes extérieures de la filiale.
     """
     return apply_volume_change(order_lines, effect, rng)
+
+
+LIST_PRICE = "list_unit_price_amount_local"  # prix catalogue unitaire
+DISCOUNT = "discount_rate"  # remise, en part (0.10 = 10 %)
+NET_PRICE = "net_unit_price_amount_local"  # prix net unitaire = catalogue × (1 − remise)
+
+
+def apply_price_change(
+    order_lines: pd.DataFrame, effect: dict, rng: np.random.Generator
+) -> pd.DataFrame:
+    """Le prix net du périmètre change, à volume inchangé.
+
+    mechanism = discount   : la remise change, le prix catalogue reste ;
+                             une décision commerciale, client par client.
+    mechanism = list_price : le prix catalogue change, la remise reste ;
+                             une décision de tarif, pour tous les clients.
+    Dans les deux cas, le prix net varie de net_price_change (−0.05 = −5 %).
+    """
+    params = effect["parameters"]
+    in_scope = scope_mask(order_lines, effect)
+    change = params["net_price_change"] * effect_strength(order_lines["order_date"], effect)
+    modified = order_lines.copy()
+
+    if params["mechanism"] == "discount":
+        # Nouveau prix net = ancien × (1 + change), à prix catalogue constant :
+        # (1 − nouvelle remise) = (1 − ancienne remise) × (1 + change).
+        new_discount = 1 - (1 - modified[DISCOUNT]) * (1 + change)
+        modified.loc[in_scope, DISCOUNT] = new_discount[in_scope].round(4)
+    else:
+        new_list_price = modified[LIST_PRICE] * (1 + change)
+        modified.loc[in_scope, LIST_PRICE] = new_list_price[in_scope].round(2)
+
+    modified[NET_PRICE] = (modified[LIST_PRICE] * (1 - modified[DISCOUNT])).round(4)
+    return modified
+
+
+UNIT_COST = "unit_cost_amount_eur"  # coût groupe unitaire du mois
+
+
+def apply_cost_change(
+    monthly_costs: pd.DataFrame, effect: dict, rng: np.random.Generator
+) -> pd.DataFrame:
+    """Le coût groupe des articles du périmètre change, pas leur prix de vente.
+
+    S'applique à la table des coûts mensuels (une ligne par article et par
+    mois, comme COUMOI dans l'ancien ERP). Exemple : un fournisseur augmente
+    ses prix de 8 % ; le CA ne bouge pas, la marge baisse.
+    """
+    costs = monthly_costs.rename(columns={"month_start_date": "order_date"})
+    in_scope = scope_mask(costs, effect)
+    change = effect["parameters"]["cost_change"] * effect_strength(costs["order_date"], effect)
+    costs.loc[in_scope, UNIT_COST] = (costs[UNIT_COST] * (1 + change))[in_scope].round(4)
+    return costs.rename(columns={"order_date": "month_start_date"})

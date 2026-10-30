@@ -31,6 +31,9 @@ def base_order_lines():
                         "quantity": int(rng.integers(10, 101)),
                         "product_line_id": str(rng.choice(["FOOT", "HAND", "FALL"])),
                         "product_type": "group" if rng.random() < 0.2 else "local",
+                        "list_unit_price_amount_local": 10.0,
+                        "discount_rate": 0.10,
+                        "net_unit_price_amount_local": 9.0,
                     }
                 )
     return pd.DataFrame(rows)
@@ -139,3 +142,53 @@ def test_intercompany_push_only_touches_its_flow(base_order_lines):
     assert len(others(modified)) == len(others(base_order_lines))
     flow = lambda lines: after_start(lines, entity_id="FR")[lambda d: d["customer_id"] == "C000"]
     assert len(flow(modified)) / len(flow(base_order_lines)) == pytest.approx(1.30, abs=0.15)
+
+
+PRICE_DROP = {"scope": {"entity_id": "DE"}, "start_date": "2026-01-01", "end_date": None,
+              "shape": "step", "parameters": {"net_price_change": -0.05}}
+
+
+def test_discount_mechanism_raises_discount_not_list_price(base_order_lines):
+    effect = {**PRICE_DROP, "parameters": {**PRICE_DROP["parameters"], "mechanism": "discount"}}
+    modified = effects.apply_price_change(base_order_lines, effect, np.random.default_rng(7))
+    germany = after_start(modified)
+    assert (germany["list_unit_price_amount_local"] == 10.0).all()
+    assert germany["discount_rate"].iloc[0] == pytest.approx(0.145)
+    assert germany["net_unit_price_amount_local"].iloc[0] == pytest.approx(8.55)
+
+
+def test_list_price_mechanism_lowers_list_price_not_discount(base_order_lines):
+    effect = {**PRICE_DROP, "parameters": {**PRICE_DROP["parameters"], "mechanism": "list_price"}}
+    modified = effects.apply_price_change(base_order_lines, effect, np.random.default_rng(7))
+    germany = after_start(modified)
+    assert (germany["discount_rate"] == 0.10).all()
+    assert germany["list_unit_price_amount_local"].iloc[0] == pytest.approx(9.50)
+    assert germany["net_unit_price_amount_local"].iloc[0] == pytest.approx(8.55)
+
+
+def test_price_change_keeps_volumes_and_other_entities(base_order_lines):
+    effect = {**PRICE_DROP, "parameters": {**PRICE_DROP["parameters"], "mechanism": "discount"}}
+    modified = effects.apply_price_change(base_order_lines, effect, np.random.default_rng(7))
+    assert modified["quantity"].sum() == base_order_lines["quantity"].sum()
+    france = modified[modified["entity_id"] == "FR"]
+    assert (france["net_unit_price_amount_local"] == 9.0).all()
+
+
+@pytest.fixture
+def monthly_costs():
+    """Coût groupe mensuel de 2 articles sur 2 ans : 4,00 € chacun."""
+    months = pd.date_range("2025-01-01", "2026-12-01", freq="MS")
+    return pd.DataFrame(
+        [{"product_id": p, "product_line_id": line, "month_start_date": m, "unit_cost_amount_eur": 4.0}
+         for p, line in (("HAND-001", "HAND"), ("FOOT-001", "FOOT")) for m in months]
+    )
+
+
+def test_cost_change_raises_cost_from_start_date_only(monthly_costs):
+    effect = {"scope": {"product_line_id": "HAND"}, "start_date": "2026-01-01", "end_date": None,
+              "shape": "step", "parameters": {"cost_change": 0.08}}
+    modified = effects.apply_cost_change(monthly_costs, effect, np.random.default_rng(8))
+    hand = modified[modified["product_line_id"] == "HAND"].set_index("month_start_date")
+    assert hand.loc["2025-12-01", "unit_cost_amount_eur"] == 4.0
+    assert hand.loc["2026-01-01", "unit_cost_amount_eur"] == pytest.approx(4.32)
+    assert (modified[modified["product_line_id"] == "FOOT"]["unit_cost_amount_eur"] == 4.0).all()
