@@ -12,7 +12,8 @@ def base_order_lines():
     """300 clients (150 en France, 150 en Allemagne), 2 ans de commandes.
 
     Chaque client commande en moyenne 3 fois par mois (loi de Poisson),
-    des quantités entre 10 et 100.
+    des quantités entre 10 et 100, dans trois gammes ; 20 % des lignes
+    sont des produits du groupe, les autres des produits locaux.
     """
     rng = np.random.default_rng(seed=1)
     months = pd.date_range("2025-01-01", "2026-12-01", freq="MS")
@@ -28,6 +29,8 @@ def base_order_lines():
                         "entity_id": entity_id,
                         "customer_id": f"C{customer_number:03d}",
                         "quantity": int(rng.integers(10, 101)),
+                        "product_line_id": str(rng.choice(["FOOT", "HAND", "FALL"])),
+                        "product_type": "group" if rng.random() < 0.2 else "local",
                     }
                 )
     return pd.DataFrame(rows)
@@ -79,3 +82,60 @@ def test_ramp_reaches_full_strength_after_ramp_months():
     assert strength.iloc[0] == 0
     assert 0.4 < strength.iloc[1] < 0.6
     assert strength.iloc[2] == 1
+
+
+def after_start(lines, entity_id="DE", start="2026-01-01"):
+    return lines[(lines["entity_id"] == entity_id) & (lines["order_date"] >= start)]
+
+
+def test_attrition_removes_about_10_percent_of_customers(base_order_lines):
+    effect = {"scope": {"entity_id": "DE"}, "start_date": "2026-01-01", "end_date": None,
+              "shape": "step", "parameters": {"lost_customer_share": 0.10}}
+    modified = effects.apply_customer_attrition(base_order_lines, effect, np.random.default_rng(3))
+    before = after_start(base_order_lines)["customer_id"].nunique()
+    after = after_start(modified)["customer_id"].nunique()
+    assert after == before - 15
+
+
+def test_attrition_leaves_remaining_customers_untouched(base_order_lines):
+    effect = {"scope": {"entity_id": "DE"}, "start_date": "2026-01-01", "end_date": None,
+              "shape": "step", "parameters": {"lost_customer_share": 0.10}}
+    modified = effects.apply_customer_attrition(base_order_lines, effect, np.random.default_rng(3))
+    remaining = after_start(modified)["customer_id"].unique()
+    kept = lambda lines: after_start(lines)[lambda d: d["customer_id"].isin(remaining)]
+    assert len(kept(modified)) == len(kept(base_order_lines))
+
+
+def test_mix_shift_reaches_target_share_without_changing_volume(base_order_lines):
+    effect = {"scope": {"entity_id": "DE"}, "start_date": "2026-01-01", "end_date": None,
+              "shape": "ramp", "ramp_months": 6,
+              "parameters": {"target_products": {"product_type": "group"},
+                             "share_start": 0.20, "share_end": 0.35}}
+    modified = effects.apply_product_mix_shift(base_order_lines, effect, np.random.default_rng(4))
+    end_period = lambda lines: after_start(lines, start="2026-07-01")
+    share = (end_period(modified)["product_type"] == "group").mean()
+    assert share == pytest.approx(0.35, abs=0.02)
+    assert modified["quantity"].sum() == base_order_lines["quantity"].sum()
+    assert len(modified) == len(base_order_lines)
+
+
+def test_demand_transfer_moves_demand_between_lines(base_order_lines):
+    effect = {"scope": {"entity_id": "DE"}, "start_date": "2026-01-01", "end_date": None,
+              "shape": "step",
+              "parameters": {"from_scope": {"product_line_id": "FALL"},
+                             "to_scope": {"product_line_id": "HAND"},
+                             "transfer_share": 0.30}}
+    modified = effects.apply_demand_transfer(base_order_lines, effect, np.random.default_rng(5))
+    fall = lambda lines: (after_start(lines)["product_line_id"] == "FALL").sum()
+    assert fall(modified) / fall(base_order_lines) == pytest.approx(0.70, abs=0.03)
+    assert len(modified) == len(base_order_lines)
+
+
+def test_intercompany_push_only_touches_its_flow(base_order_lines):
+    effect = {"scope": {"entity_id": "FR", "customer_id": "C000"}, "start_date": "2026-01-01",
+              "end_date": None, "shape": "step", "parameters": {"magnitude": 0.30}}
+    modified = effects.apply_intercompany_push(base_order_lines, effect, np.random.default_rng(6))
+    others = lambda lines: lines[lines["customer_id"] != "C000"]
+    assert len(others(modified)) == len(others(base_order_lines))
+    flow = lambda lines: after_start(lines, entity_id="FR")[lambda d: d["customer_id"] == "C000"]
+    assert len(flow(modified)) / len(flow(base_order_lines)) == pytest.approx(1.30, abs=0.15)
