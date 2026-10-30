@@ -1,11 +1,11 @@
 -- =====================================================================
 -- Entraînement SQL, thème 1 : jointures et grain
 -- Petites tables à l'image du modèle du projet (document 01, section 1).
--- À exécuter une seule fois dans la console BigQuery.
+-- À exécuter une seule fois dans la console BigQuery (région US, comme le dataset raw).
 -- =====================================================================
 
 CREATE SCHEMA IF NOT EXISTS `erp-migration-analytics-js.sql_practice`
-OPTIONS (location = 'EU');
+OPTIONS (location = 'US');
 
 -- ---------------------------------------------------------------------
 -- Une ligne = une ligne de commande
