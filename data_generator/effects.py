@@ -355,3 +355,52 @@ def apply_service_disruption(
     catch_up_days = rng.uniform(1, params["catch_up_weeks"] * 7, size=int(blocked.sum())).round()
     lines.loc[blocked, "shipped_date"] = window_end + pd.to_timedelta(catch_up_days, unit="D")
     return lines
+
+
+# -------------------------------------------------------------------
+# Lot 4 : le stock.
+# Le stock d'une plateforme suit un pont de flux :
+# stock fin = stock début + entrées (réceptions) − sorties (expéditions).
+# Les sorties viennent des commandes : un effet de stock ne les touche
+# jamais, sinon le stock contredirait les ventes. dormant_stock agit
+# seulement sur les entrées ; la baisse des ventes qui l'accompagne est
+# un effet lié (volume_change ou demand_transfer sur les mêmes articles).
+# -------------------------------------------------------------------
+
+RECEIVED_QUANTITY = "received_quantity"
+
+
+def apply_dormant_stock(
+    monthly_receipts: pd.DataFrame, effect: dict, rng: np.random.Generator
+) -> pd.DataFrame:
+    """Du stock s'accumule sur des articles d'une plateforme.
+
+    S'applique à la table des réceptions mensuelles (une ligne par article,
+    plateforme et mois). Deux mécanismes, cumulables :
+    - frozen_replenishment : les réceptions restent au niveau moyen des
+      six mois d'avant l'effet, même si les ventes baissent ;
+    - excess_receipt_months : une réception exceptionnelle, au début de
+      l'effet, égale à ce nombre de mois de réceptions habituelles.
+    """
+    params = effect["parameters"]
+    receipts = monthly_receipts.rename(columns={"month_start_date": "order_date"})
+    start = pd.Timestamp(effect["start_date"])
+    in_scope = scope_mask(receipts, effect)
+
+    scope_only = pd.Series(True, index=receipts.index)
+    for column, value in effect["scope"].items():
+        scope_only &= receipts[column] == value
+    before = scope_only & receipts["order_date"].between(start - pd.DateOffset(months=6), start, inclusive="left")
+    usual = receipts[before].groupby(["warehouse_id", "product_id"])[RECEIVED_QUANTITY].mean()
+    usual_per_line = receipts.set_index(["warehouse_id", "product_id"]).index.map(usual)
+    usual_per_line = pd.Series(usual_per_line, index=receipts.index)
+
+    if params.get("frozen_replenishment", False):
+        receipts.loc[in_scope, RECEIVED_QUANTITY] = usual_per_line[in_scope].round()
+
+    excess_months = params.get("excess_receipt_months", 0)
+    if excess_months:
+        first_month = in_scope & (receipts["order_date"] == start)
+        receipts.loc[first_month, RECEIVED_QUANTITY] += (usual_per_line[first_month] * excess_months).round()
+
+    return receipts.rename(columns={"order_date": "month_start_date"})

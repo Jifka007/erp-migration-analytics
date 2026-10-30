@@ -192,13 +192,17 @@ effect_types:
 
   - effect_type: dormant_stock
     description: >
-      Des articles d'une plateforme continuent d'être réapprovisionnés
-      alors que leurs ventes s'effondrent, ou reçoivent un achat trop
-      important. Le stock s'accumule sans sortir.
+      Du stock s'accumule sur des articles d'une plateforme : les
+      réceptions restent au niveau d'avant alors que les ventes baissent
+      (réapprovisionnement figé), ou un achat exceptionnel arrive d'un
+      coup. L'effet n'agit que sur les entrées du stock ; la baisse des
+      ventes qui l'accompagne est un effet lié (volume_change ou
+      demand_transfer sur les mêmes articles), pour que le stock reste
+      cohérent avec les commandes.
     layer: stock
     parameters:
-      sales_drop: baisse relative des sorties (-0.80 = -80 %)
-      excess_receipt_months: réception supplémentaire, en mois de ventes normales
+      frozen_replenishment: vrai si les réceptions restent au niveau moyen des six mois d'avant l'effet
+      excess_receipt_months: réception exceptionnelle au début de l'effet, en mois de réceptions habituelles
     expected_traces: [stock dormant, couverture de stock, dépréciation, valeur du stock]
     detection_level: trimestre, au niveau de l'article et de la plateforme
     priority: core

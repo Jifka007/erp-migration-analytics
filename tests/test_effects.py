@@ -263,3 +263,48 @@ def test_disruption_delays_shipments_then_catches_up(base_shipments):
     assert len(window(modified)) / len(window(base_shipments)) == pytest.approx(0.40, abs=0.12)
     assert modified["shipped_quantity"].sum() == base_shipments["shipped_quantity"].sum()
     assert modified["shipped_date"].max() <= pd.Timestamp("2026-12-31")
+
+
+@pytest.fixture
+def monthly_receipts():
+    """Réceptions mensuelles de 2 articles à Apt, sur 2 ans.
+
+    Les deux reçoivent 1 000 unités par mois. À partir de janvier 2026, les
+    ventes de HAND-001 baissent et la base réduit ses réceptions à 500 :
+    c'est ce que ferait un approvisionneur attentif.
+    """
+    months = pd.date_range("2025-01-01", "2026-12-01", freq="MS")
+    rows = []
+    for product_id in ("HAND-001", "FOOT-001"):
+        for month in months:
+            adapted = product_id == "HAND-001" and month >= pd.Timestamp("2026-01-01")
+            rows.append({"warehouse_id": "FR-APT", "product_id": product_id,
+                         "month_start_date": month, "received_quantity": 500 if adapted else 1000})
+    return pd.DataFrame(rows)
+
+
+def test_frozen_replenishment_keeps_receiving_as_before(monthly_receipts):
+    effect = {"scope": {"warehouse_id": "FR-APT", "product_id": "HAND-001"}, "start_date": "2026-01-01",
+              "end_date": None, "shape": "step", "parameters": {"frozen_replenishment": True}}
+    modified = effects.apply_dormant_stock(monthly_receipts, effect, np.random.default_rng(13))
+    hand_2026 = modified[(modified["product_id"] == "HAND-001") & (modified["month_start_date"] >= "2026-01-01")]
+    assert (hand_2026["received_quantity"] == 1000).all()
+
+
+def test_excess_receipt_adds_months_of_stock_once(monthly_receipts):
+    effect = {"scope": {"warehouse_id": "FR-APT", "product_id": "FOOT-001"}, "start_date": "2026-03-01",
+              "end_date": None, "shape": "step", "parameters": {"excess_receipt_months": 6}}
+    modified = effects.apply_dormant_stock(monthly_receipts, effect, np.random.default_rng(13))
+    foot = modified[modified["product_id"] == "FOOT-001"].set_index("month_start_date")["received_quantity"]
+    assert foot.loc["2026-03-01"] == 7000
+    assert foot.loc["2026-04-01"] == 1000
+    assert foot.sum() == monthly_receipts.loc[monthly_receipts["product_id"] == "FOOT-001", "received_quantity"].sum() + 6000
+
+
+def test_dormant_stock_leaves_other_articles_untouched(monthly_receipts):
+    effect = {"scope": {"warehouse_id": "FR-APT", "product_id": "HAND-001"}, "start_date": "2026-01-01",
+              "end_date": None, "shape": "step",
+              "parameters": {"frozen_replenishment": True, "excess_receipt_months": 3}}
+    modified = effects.apply_dormant_stock(monthly_receipts, effect, np.random.default_rng(13))
+    other = lambda r: r[r["product_id"] == "FOOT-001"]["received_quantity"].tolist()
+    assert other(modified) == other(monthly_receipts)
