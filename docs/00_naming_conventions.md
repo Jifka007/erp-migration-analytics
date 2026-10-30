@@ -7,6 +7,7 @@ Un bon nom dit ce que contient l'objet, sans avoir à l'ouvrir. Les règles ci-d
 ## 1. Les règles générales
 
 - **Tous les noms techniques sont en anglais et en `snake_case`** : minuscules, mots séparés par un tiret bas (`sales_lines`, pas `SalesLines` ni `sales-lines`).
+- **Dans le SQL, les mots-clés et les fonctions sont en majuscules** (`SELECT`, `LEFT JOIN`, `SUM`), les noms de tables, de colonnes et d'alias en minuscules : `SELECT order_number FROM fct_order_lines`.
 - **Le contenu des documents est en français** ; seuls les noms de fichiers, de tables et de colonnes sont en anglais.
 - **Pas d'abréviation obscure** : `quantity` plutôt que `qty`, `customer` plutôt que `cust`. Exceptions admises car universelles : `id`, `eur`, `pct`, `fx` (change).
 - **Un nom décrit le contenu, jamais l'étape du projet** : les phases sont notre organisation de travail, le sujet d'un document reste valable après.
