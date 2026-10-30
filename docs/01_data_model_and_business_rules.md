@@ -2,7 +2,7 @@
 
 *Les décisions structurantes du projet, fixées avant d'écrire le code. Rédigé en phase 1 (conception des sources), octobre 2026.*
 
-Ce document fixe les règles dont dépend tout le projet : le grain de chaque table de faits, la définition de chaque indicateur, le rapprochement des transactions entre les deux ERP, le journal de réconciliation et le protocole à l'aveugle. Il est écrit avant toute ligne de code : le générateur (phase 2), l'ingestion (phase 3) et dbt (phase 4) ne font qu'appliquer ces règles.
+Ce document fixe les règles dont dépend tout le projet : le grain de chaque table de faits, la définition de chaque indicateur, le rapprochement des transactions entre les deux ERP, le journal de réconciliation, la table des anomalies et la page qualité, et le protocole à l'aveugle. Il est écrit avant toute ligne de code : le générateur (phase 2), l'ingestion (phase 3) et dbt (phase 4) ne font qu'appliquer ces règles.
 
 **Comment lire les règles.** Chaque règle indique d'où elle vient :
 
@@ -28,11 +28,12 @@ Une commande, une expédition et une facture sont trois événements différents
 
 | Table | Une ligne = | Clé | Dates principales | Mesures |
 | --- | --- | --- | --- | --- |
-| `fct_order_lines` | une ligne de commande | `entity_id`, `order_number`, `order_line_number`, `order_line_suffix`, `source_system` | commande, demandée, première date promise, date promise actuelle, annulation | quantité commandée, quantité restant à livrer, quantité annulée, montant ; indicateur de vente entre filiales ; pour l'OTIF : date de la dernière expédition et quantité totale expédiée, reprises des expéditions |
+| `fct_order_lines` | une ligne de commande | `entity_id`, `order_number`, `order_line_number`, `order_line_suffix`, `source_system` | commande, demandée, première date promise, date promise actuelle, annulation | quantité commandée, quantité restant à livrer, quantité annulée, montant ; indicateur de vente entre filiales ; pour l'OTIF : date de la dernière expédition, quantité totale expédiée et nombre d'expéditions (`shipment_count`), reprises des expéditions ; nombre de jours de retard de la dernière expédition par rapport à la première promesse (`days_late`, nul ou négatif si à l'heure ; pour l'ancien ERP, qui écrase la première promesse, calculé sur la promesse actuelle, comme l'OTIF comparable) |
 | `fct_deliveries` | une expédition d'une ligne de commande | `delivery_number`, clé de la ligne de commande | expédition, première date promise | quantité expédiée, site d'expédition (`warehouse_id` : une plateforme, ou le dépôt local d'une filiale commerciale) |
-| `fct_sales_lines` | une ligne de facture ou d'avoir | `entity_id`, `invoice_number`, `invoice_line_number`, `source_system` | facture | quantité, montant en devise locale, en euros, aux taux de l'année précédente, coût de revient ; indicateur de vente entre filiales ; liens vers la ligne de commande et l'expédition facturées ; pour un avoir : son type et la facture d'origine |
+| `fct_sales_lines` | une ligne de facture ou d'avoir | `entity_id`, `invoice_number`, `invoice_line_number`, `source_system` | facture | quantité, montant en devise locale, en euros, aux taux de l'année précédente, coût de revient ; prix catalogue unitaire (`list_unit_price_amount_local`) et taux de remise (`discount_rate`), repris de la ligne de commande facturée ; indicateur de vente entre filiales ; liens vers la ligne de commande et l'expédition facturées ; pour un avoir : son type et la facture d'origine |
 | `fct_stock_snapshots` | un article, une plateforme, une fin de mois | `product_id`, `warehouse_id`, `month_end_date` | fin de mois, dernière sortie | quantité en stock, coût moyen pondéré, valeur brute, dépréciation, valeur nette ; sorties des trois derniers mois, mois par mois |
 | `fct_budget` | une filiale, une gamme, un mois | `entity_id`, `product_line_id`, `month_start_date` | mois | chiffre d'affaires cible |
+| `fct_data_quality_issues` | une ligne source touchée par un défaut (une ligne source peut en avoir plusieurs) | `source_system`, `source_table`, `source_row_key`, `defect_id` | date de la ligne source, date de détection | traitement appliqué (corrigé, écarté, gardé avec un drapeau), montant de la source, montant valorisé au prix catalogue (section 5) |
 
 **Une histoire pour comprendre les cinq tables.** La filiale française (société `FR`) reçoit le 4 mai 2026, dans M3 (elle a basculé le 7 avril), la commande 45872 d'un distributeur : 100 paires de gants (ligne 1) et 20 harnais (ligne 2). On suit les gants. Les noms de colonnes sont indicatifs : ils seront fixés précisément lors de la conception des sources.
 
@@ -81,6 +82,8 @@ On n'additionne jamais les mois entre eux : 900 + 850 ne veut rien dire.
 
 Le budget ne connaît ni commandes ni articles, seulement la gamme « mains » : on le compare au CA de mai de la France sur toute la gamme.
 
+**Pourquoi le prix catalogue et la remise sont gardés.** Le CA peut baisser à volume stable de deux façons : une hausse des remises, ou une baisse du prix catalogue. Le prix net seul ne permet pas de les distinguer. L'ancien ERP donne le prix net et la remise (`LCREM`), d'où l'on déduit le prix catalogue ; M3 donne le prix de vente brut (`OBSAPR`) et les remises de la ligne (`OBDIA1` à `OBDIA6`). Le fichier brésilien ne donne que le prix net : les deux colonnes y restent vides.
+
 **Ce que montre l'histoire :** un même événement métier, la commande de 100 paires, laisse une trace différente dans chaque table : une ligne de commande, deux expéditions, deux factures et un avoir, une photo de stock par mois. Tout mettre dans une seule table ferait compter les 100 paires plusieurs fois. Les colonnes `product_id`, `entity_id` ou `warehouse_id` renvoient aux tables de dimensions (`dim_product`, `dim_entity`, `dim_warehouse`), où se trouvent le nom de l'article, sa gamme ou le pays de la filiale.
 
 **Chaque table de faits porte aussi ses références** vers les dimensions : la filiale (`entity_id`, qui renvoie à `dim_entity`), le client, l'article, la plateforme. Les lignes de facture gardent en plus le lien vers la ligne de commande et l'expédition facturées : c'est ce lien qui permet d'appliquer le rapprochement des commandes migrées (section 4) au chiffre d'affaires, et de savoir de quel site part la marchandise vendue.
@@ -109,13 +112,20 @@ Chaque indicateur est rattaché à une seule table de faits. C'est le critère d
 | Prises de commandes | `fct_order_lines` | Montant des commandes enregistrées sur la période, à la date de commande, hors ventes entre filiales | Pratique courante | Direction commerciale |
 | Carnet de commandes | `fct_order_lines` | Montant des quantités restant à livrer sur les commandes ouvertes, à une date donnée : quantité commandée, moins les quantités expédiées et annulées avant cette date, au prix de la ligne de commande | Pratique courante | Direction commerciale |
 | Client actif | `fct_order_lines` | Client extérieur au groupe ayant passé au moins une commande sur les 12 derniers mois. Le Brésil, sans commandes, est compté à part, à partir de ses factures (`docs/sources/04_brazil_file.md`) | Hypothèse | Direction commerciale |
+| CA par client actif | `fct_sales_lines` | CA consolidé de la période divisé par le nombre de clients actifs : distingue une baisse par le nombre de clients d'une baisse par client. Toujours lu avec le nombre de clients actifs, car on peut gagner des clients et perdre du CA | Pratique courante | Direction commerciale |
+| Concentration du CA | `fct_sales_lines` | Part du CA réalisée par les 20 % premiers clients de la période, et par classe de taille de client (document 02, section 7) | Pratique courante | Direction commerciale |
+| Prix net moyen et remise moyenne | `fct_sales_lines` | Pour un même article, prix net moyen pondéré par les quantités, et taux de remise moyen pondéré par le prix catalogue ; sépare un effet remise d'un effet prix catalogue | Pratique courante | Direction commerciale, contrôle de gestion |
 | OTIF (*On Time In Full*) | `fct_order_lines` | Part des lignes de commande livrées à l'heure et en totalité : nombre de lignes OTIF divisé par le nombre de lignes dont la première date promise tombe dans la période. Une ligne est OTIF si sa dernière expédition (`shipped_date`) a lieu au plus tard à sa première date promise (`first_promised_date`) et si la quantité totale expédiée (`shipped_quantity`) égale la quantité commandée (`ordered_quantity`). Une expédition en avance compte comme à l'heure. C'est l'**OTIF officiel**, calculé là où la première promesse existe (M3, grâce aux versions de ses lignes ; l'ancien ERP l'écrase, voir `docs/sources/01_legacy_erp.md`, section 6). L'**OTIF comparable** applique la même règle à la date promise actuelle (`promised_date`) : disponible dans tous les systèmes, il sert aux comparaisons dans le temps et entre systèmes, notamment autour de la bascule, où passer d'une règle à l'autre ferait chuter l'OTIF sans que le service change. La variante à la date demandée par le client (`requested_date`) est calculée aussi | Hypothèse (il n'existe pas de définition standard), appuyée par les conditions générales de vente de Delta Plus (expédition par transporteur, délais indicatifs) | Supply chain |
 | Écart de promesse | `fct_order_lines` | Nombre de jours entre la date demandée par le client (`requested_date`) et la première date promise (`first_promised_date`), et part des lignes promises plus tard que demandé | Pratique courante | Supply chain, direction commerciale |
+| Expéditions fractionnées | `fct_order_lines` | Part des lignes expédiées en plusieurs fois (`shipment_count` supérieur à 1), et OTIF des lignes fractionnées comparé à celui des autres : une ligne fractionnée peut être OTIF si toutes ses expéditions partent avant la promesse | Pratique courante | Supply chain |
+| Annulation des reliquats | `fct_order_lines` | Part des lignes fractionnées dont le reliquat finit annulé, et part des lignes en échec d'OTIF qui finissent annulées : une vente perdue, plus grave qu'un simple retard | Hypothèse | Supply chain, direction commerciale |
+| Retard des lignes en retard | `fct_order_lines` | Pour les lignes expédiées après leur première promesse : moyenne, médiane et 90e centile de `days_late`, par mois. L'OTIF dit combien de lignes sont en retard, cet indicateur dit de combien | Pratique courante | Supply chain |
 | Couverture de stock | `fct_stock_snapshots` | Pour un article : stock en quantité divisé par la quantité moyenne sortie par mois sur les trois derniers mois. Les sorties d'une plateforme comprennent les expéditions aux clients et les envois aux autres entités du groupe. Dès qu'on regroupe des articles (famille, plateforme, groupe) : stock en valeur au coût divisé par le coût moyen des marchandises sorties par mois. Exprimée en mois, toujours affichée avec l'évolution des ventes sur les trois mois | Pratique courante | Supply chain |
 | Dépréciation du stock | `fct_stock_snapshots` | Valeur brute multipliée par un taux selon l'ancienneté : 0 % si sorti dans les 12 derniers mois et couverture d'un an au plus ; 50 % si aucune sortie depuis 12 à 24 mois ou couverture de plus d'un an ; 100 % si aucune sortie depuis plus de 24 mois | Hypothèse (grille par ancienneté, pratique courante) | Direction financière |
 | Stock dormant | `fct_stock_snapshots` | Aucune sortie depuis 12 mois, ou couverture supérieure à un an | Hypothèse | Supply chain, direction financière |
 | Taux de correspondance | `fct_sales_lines` | Part du CA rapproché entre systèmes (pondérée par le CA), en plus de la part de lignes ; lignes en cause consultables | Hypothèse | Direction informatique |
 | Doublons de bascule | `fct_sales_lines` | Nombre et montant des transactions présentes dans les deux ERP, selon `map_transactions` (section 4) | Hypothèse | Direction informatique |
+| Qualité des données | `fct_data_quality_issues` | Par défaut, par source et par mois : part des lignes touchées (volume) et part du CA concerné (valeur), toujours côte à côte, avec le traitement appliqué. Le CA concerné est valorisé au prix catalogue (section 5) | Hypothèse | Direction informatique, direction financière |
 
 **Les conventions communes à toutes les tables :**
 
@@ -138,7 +148,7 @@ Chaque indicateur est rattaché à une seule table de faits. C'est le critère d
 
 | Activité | Lignes retenues | Axe de lecture | Indicateurs |
 | --- | --- | --- | --- |
-| Commerciale | Commandes et ventes aux clients extérieurs (`is_intercompany` faux) | L'entité (`dim_entity`), et le site d'expédition pour l'OTIF | CA, croissance (organique, change, périmètre), marge brute, écart au budget, prises de commandes, carnet, clients actifs, OTIF, écart de promesse |
+| Commerciale | Commandes et ventes aux clients extérieurs (`is_intercompany` faux) | L'entité (`dim_entity`), et le site d'expédition pour l'OTIF | CA, croissance (organique, change, périmètre), marge brute, prix et remise, écart au budget, prises de commandes, carnet, clients actifs, CA par client actif, concentration, OTIF, expéditions fractionnées, annulation des reliquats, retard des lignes en retard, écart de promesse |
 | Logistique | Stock des plateformes et toutes leurs sorties, envois aux autres entités compris | La plateforme (`dim_warehouse`) | Ventes internes (envois aux autres entités), couverture, stock dormant, dépréciation, valeur du stock |
 
 Conséquences :
@@ -286,14 +296,60 @@ Tout écart résiduel non nul fait échouer un test et renvoie vers les lignes e
 
 **Le rapprochement intercompagnie (extension)**, contrôle complémentaire : pour chaque mois et chaque couple d'entités, les ventes déclarées par l'entité qui vend (la plateforme chinoise vers la France, par exemple) sont comparées aux achats déclarés par l'entité qui achète (la France auprès de la plateforme chinoise). Un écart vient d'une erreur, d'un oubli ou d'un décalage dans le temps : une marchandise facturée fin juin par la plateforme et reçue en juillet par la filiale est du stock en transit. Pendant une migration, ce contrôle est sensible, car les deux entités peuvent être sur deux ERP différents.
 
+### La table des anomalies et la page qualité
+
+Chaque contrôle de qualité de la staging (catalogue `config/delta_plus/defect_types.yml`) écrit les lignes qu'il touche dans `fct_data_quality_issues` : une ligne par ligne source et par défaut, avec la source, la table, la date, le défaut, le traitement appliqué et deux montants. Trois traitements possibles : **corriger** quand la bonne valeur est certaine, **écarter et journaliser** quand elle ne l'est pas, **garder avec un drapeau** quand la ligne est légitime mais à part (une remise de 100 %, une ligne annulée). Aucune ligne n'est supprimée en silence.
+
+**Deux montants, deux usages.** Le journal de réconciliation part des totaux des sources : il retire donc les lignes écartées à leur **montant de la source**, sinon il ne retomberait pas sur ces totaux. La page qualité, elle, mesure l'enjeu : elle valorise une ligne écartée à **quantité × prix catalogue de l'article**, jamais à son montant facturé. Sinon, l'indicateur serait faussé par le défaut qu'il mesure : un prix multiplié par 1 000 gonflerait le « CA concerné ».
+
+**La page « Qualité des données et fiabilité de la migration » du rapport** (page du cœur, question 5) contient :
+
+| Bloc | Contenu |
+| --- | --- |
+| Bandeau | Part du CA concerné (en premier), part des lignes écartées, nombre de tests en échec |
+| Défaut × source | Lignes touchées et CA concerné, par traitement appliqué |
+| Évolution | Les mêmes mesures mois par mois, avec la bascule du 7 avril 2026 marquée : M3 améliore-t-il la qualité, ou la reprise a-t-elle créé ses propres anomalies ? |
+| Correspondances | Taux de correspondance des articles, des clients et des comptes du CRM, par statut (section 4) |
+| Détail | Les lignes en cause, avec leur motif |
+| Révélation | Pour chaque défaut, le taux détecté comparé au taux scellé (section 6) |
+
+**Lire les deux mesures ensemble.** Beaucoup de lignes pour peu de CA, ce sont de petites erreurs de saisie. Peu de lignes pour beaucoup de CA, ce sont de grosses erreurs : le cas dangereux, car quelques lignes suffisent à fausser le CA d'un mois.
+
 ## 6. Le protocole à l'aveugle
 
 Pour que les conclusions ne soient pas circulaires, je ne connais pas les histoires cachées dans les données.
 
-1. Claude fixe les histoires dans un fichier scellé, encodé et exclu de Git.
-2. L'empreinte SHA-256 du fichier est commitée et poussée sur le dépôt public avant toute analyse : elle prouve que le fichier n'a pas été modifié ensuite.
-3. Mes conclusions sont commitées avant l'ouverture du fichier.
-4. Le fichier est ensuite publié en clair : chacun peut vérifier l'ordre des étapes.
+**Ce qui est public et ce qui est caché.**
+
+| Fichier | Statut | Contenu |
+| --- | --- | --- |
+| `config/delta_plus/effect_types.yml` | Public | Les types d'effets que le moteur sait produire (ce qui est possible) |
+| `config/delta_plus/defect_types.yml` | Public | Les types de défauts que le générateur sait injecter |
+| `config/delta_plus/sealed_scenario.enc` | Caché, chiffré, hors de Git | Les histoires réellement injectées (où, quand, avec quelle ampleur), les taux des défauts, la graine du hasard et la période cachée |
+| `config/delta_plus/scenario_fingerprint.txt` | Public | L'empreinte SHA-256 du scénario en clair |
+
+**Les étapes.**
+
+1. Claude compose le scénario, sans me le montrer, et le scelle : il est chiffré, sa clé reste dans `.env` (hors de Git), et son empreinte est commitée et poussée avant toute génération de données.
+2. Le générateur déchiffre le scénario en mémoire et refuse de tourner si son contenu ne correspond pas à l'empreinte.
+3. L'historique s'arrête au 30 septembre 2026. Les trois mois suivants, du 1er octobre au 31 décembre 2026, forment la **période cachée** : générés, chiffrés et chargés seulement à la révélation.
+4. Mes conclusions et ma prévision sont commitées avant la révélation.
+5. Le scénario est ensuite publié en clair : chacun peut vérifier qu'il correspond à l'empreinte, et que les conclusions ont été commitées avant.
+
+**Un rescellement est possible, jamais en silence.** Si le scénario doit changer avant toute analyse (un nouveau type de défaut dont le taux doit rester caché, un effet qui ne ressort pas du bruit sur les données générées), il est rescellé, et le commit de la nouvelle empreinte en donne la raison. Après le début de l'analyse, il ne change plus.
+
+**La prévision d'atterrissage.** Avant la révélation, je prévois le CA consolidé de la période cachée, par mois, par filiale et par gamme, avec une fourchette, et je dis ce que je prévois pour chaque histoire que j'ai trouvée (se poursuit, se résorbe, s'aggrave).
+
+**La grille d'évaluation.** À la révélation, chaque histoire cachée est évaluée à quatre niveaux :
+
+| Niveau | La question | Réussi si |
+| --- | --- | --- |
+| Décrire | Ai-je vu le phénomène ? | Il est signalé, au bon endroit et à la bonne période |
+| Diagnostiquer | Ai-je trouvé la bonne cause ? | La cause retenue est celle du scénario, et l'ampleur est du bon ordre |
+| Prédire | Ma prévision tient-elle ? | Le réalisé de la période cachée tombe dans la fourchette |
+| Prescrire | Ma recommandation est-elle juste ? | Elle vise la vraie cause, avec un effet chiffré cohérent |
+
+Un effet est volontairement sous le seuil de détection : la bonne conclusion est alors « soupçonné, mais non démontrable ». Pour les défauts, le taux détecté par la page qualité est comparé au taux scellé.
 
 ## 7. Les fichiers de conception
 
@@ -307,7 +363,10 @@ Pour que les conclusions ne soient pas circulaires, je ne connais pas les histoi
 | `docs/sources/03_crm.md` et `03_crm_example.json` | Structure du document compte du CRM, rapprochement avec les ERP et un exemple JSON |
 | `docs/sources/04_brazil_file.md` | Mise en page du fichier de la filiale brésilienne |
 | `docs/sources/05_budget.md` | Mise en page du budget saisi par la finance |
-| `config/delta_plus/defects.yml` | Les types d'effets et les défauts à injecter |
+| `config/delta_plus/effect_types.yml` | Le catalogue public des types d'effets (section 6) |
+| `config/delta_plus/defect_types.yml` | Le catalogue public des défauts, avec leur traitement en staging et leur détection (section 5) |
+| `config/delta_plus/scenario_fingerprint.txt` | L'empreinte du scénario scellé ; le scénario chiffré (`sealed_scenario.enc`) reste hors de Git |
+| `data_generator/` | Le moteur d'effets (`effects.py`) et le scellement (`sealing.py`), testés dans `tests/` |
 
 ## 8. Idées pour plus tard
 

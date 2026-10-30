@@ -47,7 +47,7 @@ Si le budget 2026 avait été voté sans le Brésil, le groupe paraîtrait au-de
 | Ligne `Total` ou ligne de sous-total ajoutée par la finance | Exclue, et utilisée comme contrôle |
 | Onglet renommé ou ajouté en cours d'année (`Budget 2026 révisé`) | La liste des onglets attendus est fixée ; un onglet inattendu fait échouer le chargement avec un message clair |
 
-Les taux de ces défauts sont fixés en tâche 1.6 (`config/delta_plus/defects.yml`).
+Les types de ces défauts sont au catalogue `config/delta_plus/defect_types.yml` (`BUD01` à `BUD06`) ; leurs taux sont fixés en tâche 1.6, dans le scénario scellé.
 
 **Une seule version par année.** Quand la finance révise le budget (pour ajouter le Brésil en 2026, par exemple), elle remplace les chiffres dans l'onglet de l'année. Le projet ne garde donc que la dernière version ; suivre les versions successives d'un budget (initial, révisé) est une extension.
 

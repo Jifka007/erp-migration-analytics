@@ -55,6 +55,13 @@ Table OOLINE {
   OBITNO varchar(15)
   OBWHLO varchar(3) [note: 'APT ou DEP']
   OBORQT numeric(15,6) [note: 'Quantité commandée, unité de base']
+  OBSAPR numeric(17,6) [note: 'Prix de vente brut, avant remises']
+  OBDIA1 numeric(17,2) [note: 'Montant de remise 1 (jusqu a OBDIA6)']
+  OBDIA2 numeric(17,2)
+  OBDIA3 numeric(17,2)
+  OBDIA4 numeric(17,2)
+  OBDIA5 numeric(17,2)
+  OBDIA6 numeric(17,2)
   OBNEPR numeric(17,6) [note: 'Prix net']
   OBDWDT numeric(8,0) [note: 'Date de livraison prévue (verifie)']
   OBCODT numeric(8,0) [note: 'Date confirmée actuelle']

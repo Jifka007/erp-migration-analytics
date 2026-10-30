@@ -15,7 +15,7 @@
 # Le générateur fabrique les données en trois couches :
 #   1. la base : tendance, saisonnalité, hasard ;
 #   2. les effets de ce catalogue, posés sur la base ;
-#   3. les défauts de qualité (defects.yml), appliqués à la fin.
+#   3. les défauts de qualité (defect_types.yml ; taux dans le scénario scellé), appliqués à la fin.
 #
 # Chaque type précise :
 #   layer             l'étape de la génération qu'il modifie

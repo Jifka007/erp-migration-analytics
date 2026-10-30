@@ -113,7 +113,7 @@ C'est la seule source du coût utilisé pour la marge et la valeur du stock (doc
 | `LCART` | CHAR(15) | Code article | `product_code` |
 | `LCQTE` | NUMERIC(11,3) | Quantité commandée, en unité de vente | `ordered_quantity` (convertie en unité de base) |
 | `LCPRIX` | NUMERIC(11,4) | Prix unitaire net, en devise de la commande, par unité de vente | `net_unit_price_amount_local` |
-| `LCREM` | NUMERIC(5,2) | Remise en pourcentage (`12.50` = 12,5 %), déjà déduite du prix net | `discount_rate` (divisé par 100) |
+| `LCREM` | NUMERIC(5,2) | Remise en pourcentage (`12.50` = 12,5 %), déjà déduite du prix net | `discount_rate` (divisé par 100) ; le prix catalogue s'en déduit : `list_unit_price_amount_local` = `LCPRIX` ÷ (1 − `discount_rate`) |
 | `LCDTDM` | NUMERIC(7,0) | Date demandée par le client | `requested_date` |
 | `LCDTPR` | NUMERIC(7,0) | Date promise **actuelle** : écrasée à chaque report | `promised_date` |
 | `LCDEPO` | CHAR(3) | Site d'expédition prévu : `APT`, `SHA` (plateformes), `DAL`, `DES`, `DEM` (dépôts locaux Allemagne, Espagne, Émirats) | `warehouse_id` (par correspondance) |
@@ -254,7 +254,7 @@ Un *snapshot* dbt quotidien des lignes de commande ouvertes de l'ancien ERP perm
 
 ## 7. Ce qui n'est pas dans ce document
 
-- Les défauts injectés dans les données (doublons, codes manquants, lignes orphelines, fiches client mal typées) : tâche 1.6, `config/delta_plus/defects.yml`.
+- Les défauts injectés dans les données (doublons, codes manquants, lignes orphelines, fiches client mal typées) : tâche 1.6, `config/delta_plus/defect_types.yml` (défauts `LEG01` à `LEG07` et défauts de plausibilité `P01` à `P12`).
 - Les commandes ouvertes recréées dans M3 à la bascule, et leur rapprochement : document 01, section 4.
 - Les achats fournisseurs et le journal des mouvements de stock : extensions.
 

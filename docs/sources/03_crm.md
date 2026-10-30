@@ -59,7 +59,7 @@ Le CRM est l'outil des commerciaux. Il enregistre les comptes qu'ils suivent (cl
 | `opportunities` | `opportunity_id`, `created_date`, `stage` (`qualification`, `proposition`, `négociation`, `gagnée`, `perdue`), `expected_close_date`, `estimated_amount`, `currency`, `lines` (**liste**) | Le montant est parfois un nombre, parfois un texte au format local (`"12 000,00"`) |
 | `opportunities[].lines` | `product_line`, `product_family`, `quantity` | `product_family` en libellé, parfois absent |
 
-Ces irrégularités sont normales dans un CRM : des champs facultatifs, de la saisie libre, plusieurs écrans pour la même information. Le code ERP lui-même peut être mal recopié : sans les zéros de tête (`1042` pour `00001042`), ou avec des espaces. Leurs taux sont fixés en tâche 1.6 (`defects.yml`).
+Ces irrégularités sont normales dans un CRM : des champs facultatifs, de la saisie libre, plusieurs écrans pour la même information. Le code ERP lui-même peut être mal recopié : sans les zéros de tête (`1042` pour `00001042`), ou avec des espaces. Leurs types sont au catalogue `config/delta_plus/defect_types.yml` (`CRM01` à `CRM09`) ; leurs taux sont fixés en tâche 1.6, dans le scénario scellé.
 
 ## 4. Le rapprochement avec les ERP
 
@@ -114,7 +114,7 @@ Le rapport entre comptes du CRM et clients de l'ERP reprend celui de Delta Plus,
 
 ## 6. Ce qui n'est pas dans ce document
 
-- Les taux des irrégularités (champs absents, dates et montants mal formatés, segments en texte libre, codes ERP anciens ou faux, doublons de comptes) : tâche 1.6, `config/delta_plus/defects.yml`.
+- Les taux des irrégularités (champs absents, dates et montants mal formatés, segments en texte libre, codes ERP anciens ou faux, doublons de comptes) : tâche 1.6, catalogue `config/delta_plus/defect_types.yml` (`CRM01` à `CRM09`), taux dans le scénario scellé.
 - L'analyse des opportunités (conversion en commandes) : extension.
 
 ## Sources

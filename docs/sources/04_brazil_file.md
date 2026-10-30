@@ -75,7 +75,7 @@ Le système du Brésil crée **ses propres codes**, même pour les produits du g
 | Retour arrivé le mois suivant | Normal : la devolução est dans le fichier du mois où elle est émise, avec sa facture d'origine |
 | Référence Delta Plus vide ou fausse | Table de correspondance tenue à la main, taux de correspondance suivi sur la page qualité |
 
-Les taux de ces défauts sont fixés en tâche 1.6 (`config/delta_plus/defects.yml`).
+Les types de ces défauts sont au catalogue `config/delta_plus/defect_types.yml` (`BR01` à `BR09`, et les défauts de plausibilité `P01`, `P02`, `P04`, `P08` et `P10`) ; leurs taux sont fixés en tâche 1.6, dans le scénario scellé.
 
 ## 6. Les clients
 

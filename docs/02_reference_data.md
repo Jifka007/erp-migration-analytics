@@ -127,6 +127,16 @@ Les noms des sous-traitants sont fictifs : Delta Plus ne les publie pas. Leurs p
 
 **Les clients internes.** Chaque entité approvisionnée par une plateforme est aussi cliente de cette plateforme, avec le segment `INTERCOMPANY` et l'entité qu'elle représente. C'est de là que vient `is_intercompany` sur les lignes de commande et de vente.
 
+**Les classes de taille.** Chaque client extérieur a une classe de taille (`customer_size_class`), selon son CA annuel avec le groupe :
+
+| `customer_size_class` | Classe | Part des clients | Part du CA extérieur |
+| --- | --- | --- | --- |
+| `large` | Grand compte | 5 % | 45 % |
+| `medium` | Client moyen | 25 % | 35 % |
+| `small` | Petit client | 70 % | 20 % |
+
+Ces parts sont une *hypothèse*, dans l'ordre de grandeur habituel d'un fournisseur de distributeurs : peu de grands comptes, qui pèsent près de la moitié du CA. Elles servent la question 2 : une baisse due à la perte de quelques grands comptes ne se lit pas comme une baisse diffuse sur les petits clients (concentration du CA, document 01, section 2).
+
 Le nombre de clients extérieurs par entité (`customer_counts_full_scale`, donné pour le groupe complet, voir la section 9) est une *hypothèse*. Les clients eux-mêmes, avec leurs noms et leurs codes dans chaque système, seront produits par le générateur.
 
 ## 8. Les dates clés

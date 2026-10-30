@@ -23,7 +23,7 @@ Un bon nom dit ce que contient l'objet, sans avoir à l'ouvrir. Les règles ci-d
 ## 3. La configuration (`config/`)
 
 - Un sous-dossier par contexte métier : `config/delta_plus/`. Adapter le projet à un autre secteur, c'est créer un autre sous-dossier.
-- Fichiers YAML nommés par contenu : `master_data.yml`, `defects.yml`.
+- Fichiers YAML nommés par contenu : `master_data.yml`, `effect_types.yml`, `defect_types.yml`.
 - Les clés YAML suivent les mêmes règles que les colonnes (section 5).
 
 ## 4. Les tables

@@ -2,7 +2,10 @@
 # Documentation et sources de chaque choix : docs/02_reference_data.md
 # Ce fichier est la « vérité » commune : chaque source (ancien ERP, M3,
 # fichier brésilien, CRM) en tire sa propre version, avec ses propres codes.
-# Il ne contient aucune histoire cachée : celles-ci sont dans defects.yml.
+# Il ne contient aucune histoire cachée : celles-ci sont dans le scénario
+# scellé (sealed_scenario.enc, hors de Git), dont seule l'empreinte est
+# commitée (scenario_fingerprint.txt). Les types d'effets et de défauts
+# possibles sont dans effect_types.yml et defect_types.yml.
 
 project:
   history_start_date: 2024-01-01
@@ -29,7 +32,9 @@ migration:
   outage_start_date: 2026-03-26      # interruption avant la bascule
 
 # -------------------------------------------------------------------
-# Entités (filiales). entity_id = la « société » des ERP (CONO dans M3).
+# Entités (filiales). entity_id = l'entité juridique des ERP : le code
+# société dans l'ancien ERP, la division (DIVI) dans M3, où la société
+# (CONO) est le niveau au-dessus.
 # is_platform        : approvisionne d'autres entités du groupe
 # has_external_sales : vend à des clients extérieurs
 # -------------------------------------------------------------------
@@ -331,6 +336,23 @@ customer_segments:
 # (scale_factor = 1). Le générateur en garde scale_factor × ce nombre.
 # Chaque entité est en plus cliente des plateformes qui l'approvisionnent
 # (segment INTERCOMPANY), quelle que soit l'échelle.
+# Classes de taille des clients extérieurs, selon leur CA annuel avec le
+# groupe (hypothèse). Les gros clients sont peu nombreux mais pèsent
+# lourd : c'est ce qui rend utile la concentration du CA (document 01).
+customer_size_classes:
+  - customer_size_class: large
+    customer_size_class_name: Grand compte
+    customer_share: 0.05
+    revenue_share: 0.45
+  - customer_size_class: medium
+    customer_size_class_name: Client moyen
+    customer_share: 0.25
+    revenue_share: 0.35
+  - customer_size_class: small
+    customer_size_class_name: Petit client
+    customer_share: 0.70
+    revenue_share: 0.20
+
 customer_counts_full_scale:
   FR: 3000
   DE: 1600
