@@ -156,7 +156,10 @@ effect_types:
       average_delay_days: retard moyen de ces lignes, en jours
       partial_share: part supplémentaire de lignes expédiées en plusieurs fois
       cancellation_share: part des reliquats finalement annulés
-    expected_traces: [OTIF, carnet de commandes, écart de promesse]
+      reschedule_share: >
+        part des lignes en retard dont la promesse actuelle est repoussée
+        (le client est prévenu) ; la première promesse ne bouge jamais
+    expected_traces: [OTIF officiel, OTIF comparable (écart entre les deux), carnet de commandes, écart de promesse]
     detection_level: mois, au niveau du site d'expédition
     priority: core
 

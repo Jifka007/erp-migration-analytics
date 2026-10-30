@@ -268,3 +268,90 @@ def apply_cost_change(
     change = effect["parameters"]["cost_change"] * effect_strength(costs["order_date"], effect)
     costs.loc[in_scope, UNIT_COST] = (costs[UNIT_COST] * (1 + change))[in_scope].round(4)
     return costs.rename(columns={"order_date": "month_start_date"})
+
+
+# -------------------------------------------------------------------
+# Lot 3 : les expéditions.
+# Les fonctions travaillent sur la table de travail des expéditions :
+# une ligne par expédition prévue, avec les attributs de sa ligne de
+# commande (order_date, promised_date, first_promised_date, filiale,
+# site, produit). Le générateur en tire ensuite les tables des sources.
+# -------------------------------------------------------------------
+
+
+def apply_fulfilment_delay(
+    shipments: pd.DataFrame, effect: dict, rng: np.random.Generator
+) -> pd.DataFrame:
+    """Les expéditions du périmètre prennent du retard.
+
+    Trois mécanismes, chacun sur une part des lignes du périmètre :
+    - retard : l'expédition part après la date promise ; pour une part des
+      lignes en retard (reschedule_share), le service client repousse la
+      promesse actuelle (promised_date), jamais la première promesse ;
+    - expédition en deux fois : une partie part à la date prévue, le
+      reliquat plus tard ;
+    - annulation : une part des reliquats n'est jamais expédiée.
+    Les quantités sont conservées : expédié + annulé = commandé.
+    """
+    params = effect["parameters"]
+    lines = shipments.copy()
+    lines["cancelled_quantity"] = lines.get("cancelled_quantity", 0)
+    in_scope = scope_mask(lines, effect)
+    strength = effect_strength(lines["order_date"], effect)
+
+    def draw(share: float) -> pd.Series:
+        return in_scope & (pd.Series(rng.random(len(lines)), index=lines.index) < share * strength)
+
+    def delays(count: int) -> pd.TimedeltaIndex:
+        days = np.maximum(1, rng.exponential(params["average_delay_days"], size=count).round())
+        return pd.to_timedelta(days, unit="D")
+
+    # 1. Retards : l'expédition part après la promesse actuelle.
+    late = draw(params["late_share"])
+    reference = lines.loc[late, ["shipped_date", "promised_date"]].max(axis=1)
+    lines.loc[late, "shipped_date"] = reference + delays(int(late.sum()))
+
+    # Une part des retards est annoncée au client : la promesse actuelle suit.
+    rescheduled = late & (pd.Series(rng.random(len(lines)), index=lines.index) < params["reschedule_share"])
+    lines.loc[rescheduled, "promised_date"] = lines.loc[rescheduled, "shipped_date"]
+
+    # 2. Expéditions en deux fois, sur des lignes qui n'étaient pas en retard.
+    split = draw(params["partial_share"]) & ~late & (lines["shipped_quantity"] >= 2)
+    first_part = np.maximum(1, (lines.loc[split, "shipped_quantity"] * rng.uniform(0.5, 0.9, int(split.sum()))).astype(int))
+    remainders = lines[split].copy()
+    remainders["shipped_quantity"] = lines.loc[split, "shipped_quantity"] - first_part
+    remainders["shipped_date"] = remainders[["shipped_date", "promised_date"]].max(axis=1) + delays(len(remainders))
+    lines.loc[split, "shipped_quantity"] = first_part
+
+    # 3. Une part des reliquats est annulée : rien n'est expédié.
+    cancelled = pd.Series(rng.random(len(remainders)), index=remainders.index) < params["cancellation_share"]
+    remainders.loc[cancelled, "cancelled_quantity"] = remainders.loc[cancelled, "shipped_quantity"]
+    remainders.loc[cancelled, "shipped_quantity"] = 0
+    remainders.loc[cancelled, "shipped_date"] = pd.NaT
+
+    return pd.concat([lines, remainders], ignore_index=True)
+
+
+def apply_service_disruption(
+    shipments: pd.DataFrame, effect: dict, rng: np.random.Generator
+) -> pd.DataFrame:
+    """Pendant une fenêtre, un site n'expédie qu'une part de ses commandes.
+
+    Les expéditions prévues dans la fenêtre partent normalement avec la
+    probabilité shipment_capacity ; les autres attendent la fin de la
+    fenêtre, puis partent au fil de catch_up_weeks semaines (le rattrapage).
+    Les promesses ne bougent pas : c'est le service réel qui se dégrade.
+    """
+    params = effect["parameters"]
+    lines = shipments.copy()
+    window_start = pd.Timestamp(effect["start_date"])
+    window_end = pd.Timestamp(effect["end_date"])
+
+    in_window = lines["shipped_date"].between(window_start, window_end)
+    for column, value in effect["scope"].items():
+        in_window &= lines[column] == value
+
+    blocked = in_window & (pd.Series(rng.random(len(lines)), index=lines.index) >= params["shipment_capacity"])
+    catch_up_days = rng.uniform(1, params["catch_up_weeks"] * 7, size=int(blocked.sum())).round()
+    lines.loc[blocked, "shipped_date"] = window_end + pd.to_timedelta(catch_up_days, unit="D")
+    return lines

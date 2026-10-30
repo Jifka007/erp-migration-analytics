@@ -192,3 +192,74 @@ def test_cost_change_raises_cost_from_start_date_only(monthly_costs):
     assert hand.loc["2025-12-01", "unit_cost_amount_eur"] == 4.0
     assert hand.loc["2026-01-01", "unit_cost_amount_eur"] == pytest.approx(4.32)
     assert (modified[modified["product_line_id"] == "FOOT"]["unit_cost_amount_eur"] == 4.0).all()
+
+
+@pytest.fixture
+def base_shipments():
+    """2 000 lignes de commande en 2026, en France et en Allemagne.
+
+    Chacune est promise 10 jours après la commande et expédiée à l'heure,
+    entre 3 et 10 jours après la commande, en une seule fois.
+    """
+    rng = np.random.default_rng(seed=10)
+    order_dates = pd.Timestamp("2026-01-01") + pd.to_timedelta(rng.integers(0, 330, 2000), unit="D")
+    promised = order_dates + pd.Timedelta(days=10)
+    return pd.DataFrame({
+        "order_number": [f"O{i:05d}" for i in range(2000)],
+        "order_line_number": 1,
+        "entity_id": np.where(np.arange(2000) < 1000, "FR", "DE"),
+        "warehouse_id": np.where(np.arange(2000) < 1000, "FR-APT", "DE-DEP"),
+        "order_date": order_dates,
+        "first_promised_date": promised,
+        "promised_date": promised,
+        "shipped_date": order_dates + pd.to_timedelta(rng.integers(3, 11, 2000), unit="D"),
+        "shipped_quantity": rng.integers(10, 101, 2000),
+    })
+
+
+DELAY = {"scope": {"entity_id": "DE"}, "start_date": "2026-01-01", "end_date": None, "shape": "step",
+         "parameters": {"late_share": 0.20, "average_delay_days": 6, "reschedule_share": 0.5,
+                        "partial_share": 0.10, "cancellation_share": 0.3}}
+
+
+def otif_rates(lines, promise_column):
+    """OTIF par ligne de commande : tout expédié au plus tard à la promesse."""
+    on_time_quantity = lines["shipped_quantity"].where(lines["shipped_date"] <= lines[promise_column], 0)
+    per_line = lines.assign(on_time=on_time_quantity).groupby("order_number").agg(
+        on_time=("on_time", "sum"), shipped=("shipped_quantity", "sum"),
+        cancelled=("cancelled_quantity", "sum"))
+    return (per_line["on_time"] >= per_line["shipped"] + per_line["cancelled"]).mean()
+
+
+def test_delay_keeps_quantities_and_first_promise(base_shipments):
+    modified = effects.apply_fulfilment_delay(base_shipments, DELAY, np.random.default_rng(11))
+    total = modified["shipped_quantity"].sum() + modified["cancelled_quantity"].sum()
+    assert total == base_shipments["shipped_quantity"].sum()
+    first = modified.drop_duplicates("order_number").set_index("order_number")["first_promised_date"]
+    assert first.equals(base_shipments.set_index("order_number")["first_promised_date"])
+
+
+def test_delay_hits_official_otif_harder_than_comparable(base_shipments):
+    modified = effects.apply_fulfilment_delay(base_shipments, DELAY, np.random.default_rng(11))
+    germany = modified[modified["entity_id"] == "DE"]
+    official = otif_rates(germany, "first_promised_date")
+    comparable = otif_rates(germany, "promised_date")
+    assert official == pytest.approx(0.72, abs=0.04)
+    assert comparable > official + 0.05
+
+
+def test_delay_leaves_france_on_time(base_shipments):
+    modified = effects.apply_fulfilment_delay(base_shipments, DELAY, np.random.default_rng(11))
+    france = modified[modified["entity_id"] == "FR"]
+    assert otif_rates(france, "first_promised_date") == 1
+
+
+def test_disruption_delays_shipments_then_catches_up(base_shipments):
+    effect = {"scope": {"warehouse_id": "DE-DEP"}, "start_date": "2026-03-26", "end_date": "2026-04-07",
+              "parameters": {"shipment_capacity": 0.40, "catch_up_weeks": 3}}
+    modified = effects.apply_service_disruption(base_shipments, effect, np.random.default_rng(12))
+    window = lambda lines: lines[(lines["warehouse_id"] == "DE-DEP")
+                                 & lines["shipped_date"].between("2026-03-26", "2026-04-07")]
+    assert len(window(modified)) / len(window(base_shipments)) == pytest.approx(0.40, abs=0.12)
+    assert modified["shipped_quantity"].sum() == base_shipments["shipped_quantity"].sum()
+    assert modified["shipped_date"].max() <= pd.Timestamp("2026-12-31")
