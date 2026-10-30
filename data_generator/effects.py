@@ -404,3 +404,63 @@ def apply_dormant_stock(
         receipts.loc[first_month, RECEIVED_QUANTITY] += (usual_per_line[first_month] * excess_months).round()
 
     return receipts.rename(columns={"order_date": "month_start_date"})
+
+
+# -------------------------------------------------------------------
+# Les effets induits (derived_from, lag_months).
+# Un effet induit ne saisit pas son ampleur : il la mesure, mois par mois,
+# sur ce que l'effet d'origine a réellement produit, puis l'applique avec
+# un décalage. Ainsi les deux traces d'une même histoire restent
+# cohérentes, même si l'effet d'origine a tiré des lignes au hasard.
+# -------------------------------------------------------------------
+
+
+def realized_monthly_change(
+    base: pd.DataFrame, modified: pd.DataFrame, measured_scope: dict
+) -> pd.Series:
+    """Variation relative, mois par mois, des quantités d'un périmètre.
+
+    Exemple : la hausse des ventes de produits du groupe du Brésil après
+    l'effet d'intégration (measured_scope = filiale BR, produits du groupe).
+    """
+    def monthly_quantity(lines: pd.DataFrame) -> pd.Series:
+        selected = lines
+        for column, value in measured_scope.items():
+            selected = selected[selected[column] == value]
+        return selected.groupby(selected["order_date"].dt.to_period("M"))["quantity"].sum()
+
+    return (monthly_quantity(modified) / monthly_quantity(base) - 1).fillna(0)
+
+
+def apply_derived_volume_change(
+    order_lines: pd.DataFrame,
+    effect: dict,
+    monthly_change: pd.Series,
+    rng: np.random.Generator,
+) -> pd.DataFrame:
+    """Applique au périmètre de l'effet la variation mesurée sur l'effet d'origine.
+
+    lag_months décale dans le temps : −2 signifie que l'effet induit précède
+    l'effet d'origine de deux mois (les achats de février suivent les ventes
+    d'avril). Au-delà du dernier mois mesuré, la dernière variation est gardée.
+    """
+    in_scope = scope_mask(order_lines, effect)
+    lag = effect.get("lag_months", 0)
+    source_months = order_lines["order_date"].dt.to_period("M") - lag
+    known = monthly_change.sort_index()
+    after_last = source_months > known.index.max()
+    magnitude = (
+        source_months.map(known)
+        .astype(float)
+        .mask(after_last, known.iloc[-1])
+        .fillna(0.0)
+        .where(in_scope, 0.0)
+    )
+
+    # Hausse : des lignes du périmètre sont dupliquées ; baisse : retirées.
+    draws = pd.Series(rng.random(len(order_lines)), index=order_lines.index)
+    duplicated = (magnitude > 0) & (draws < magnitude)
+    removed = (magnitude < 0) & (draws < -magnitude)
+    extra_lines = order_lines[duplicated].copy()
+    extra_lines["order_number"] = extra_lines["order_number"].astype(str) + "-D"
+    return pd.concat([order_lines[~removed], extra_lines], ignore_index=True)

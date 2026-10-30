@@ -308,3 +308,44 @@ def test_dormant_stock_leaves_other_articles_untouched(monthly_receipts):
     modified = effects.apply_dormant_stock(monthly_receipts, effect, np.random.default_rng(13))
     other = lambda r: r[r["product_id"] == "FOOT-001"]["received_quantity"].tolist()
     assert other(modified) == other(monthly_receipts)
+
+
+@pytest.fixture
+def brazil_flows():
+    """Ventes du Brésil à ses clients et ventes de Shanghai au Brésil, en 2026.
+
+    Le Brésil vend 400 lignes par mois, dont 20 % de produits du groupe.
+    Shanghai lui vend 400 lignes par mois de produits du groupe.
+    """
+    rng = np.random.default_rng(seed=20)
+    rows = []
+    for month in pd.date_range("2026-01-01", "2026-12-01", freq="MS"):
+        for i in range(400):
+            rows.append({"order_number": f"BR-{month:%m}-{i}", "entity_id": "BR", "customer_id": f"C{i % 50}",
+                         "order_date": month + pd.Timedelta(days=int(rng.integers(0, 28))), "quantity": 10,
+                         "product_type": "group" if rng.random() < 0.2 else "local"})
+            rows.append({"order_number": f"CN-{month:%m}-{i}", "entity_id": "CN", "customer_id": "BR",
+                         "order_date": month + pd.Timedelta(days=int(rng.integers(0, 28))), "quantity": 10,
+                         "product_type": "group"})
+    return pd.DataFrame(rows)
+
+
+def test_derived_purchases_follow_realized_sales_two_months_ahead(brazil_flows):
+    integration = {"scope": {"entity_id": "BR"}, "start_date": "2026-01-01", "end_date": None,
+                   "shape": "ramp", "ramp_months": 11,
+                   "parameters": {"target_products": {"product_type": "group"},
+                                  "share_start": 0.20, "share_end": 0.35}}
+    after_integration = effects.apply_product_mix_shift(brazil_flows, integration, np.random.default_rng(21))
+    sales_change = effects.realized_monthly_change(
+        brazil_flows, after_integration, {"entity_id": "BR", "product_type": "group"})
+
+    purchases = {"scope": {"entity_id": "CN", "customer_id": "BR"}, "start_date": "2026-01-01",
+                 "end_date": None, "lag_months": -2}
+    result = effects.apply_derived_volume_change(after_integration, purchases, sales_change,
+                                                 np.random.default_rng(22))
+    purchase_change = effects.realized_monthly_change(
+        after_integration, result, {"entity_id": "CN", "customer_id": "BR"})
+
+    october, december = pd.Period("2026-10", "M"), pd.Period("2026-12", "M")
+    assert sales_change[december] > 0.5
+    assert purchase_change[october] == pytest.approx(sales_change[december], abs=0.1)
