@@ -25,3 +25,6 @@ dbt/logs/
 
 # Réglages locaux de VS Code
 .vscode/
+
+# Exports ponctuels (copies PDF pour le Drive), jamais versionnés
+exports/

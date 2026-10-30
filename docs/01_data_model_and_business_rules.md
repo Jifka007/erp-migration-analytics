@@ -35,7 +35,7 @@ Une commande, une expédition et une facture sont trois événements différents
 | `fct_budget` | une filiale, une gamme, un mois | `entity_id`, `product_line_id`, `month_start_date` | mois | chiffre d'affaires cible |
 | `fct_data_quality_issues` | une ligne source touchée par un défaut (une ligne source peut en avoir plusieurs) | `source_system`, `source_table`, `source_row_key`, `defect_id` | date de la ligne source, date de détection | traitement appliqué (corrigé, écarté, gardé avec un drapeau), montant de la source, montant valorisé au prix catalogue (section 5) |
 
-**Une histoire pour comprendre les cinq tables.** La filiale française (société `FR`) reçoit le 4 mai 2026, dans M3 (elle a basculé le 7 avril), la commande 45872 d'un distributeur : 100 paires de gants (ligne 1) et 20 harnais (ligne 2). On suit les gants. Les noms de colonnes sont indicatifs : ils seront fixés précisément lors de la conception des sources.
+**Une histoire pour comprendre les cinq tables métier** (la sixième, la table des anomalies, est décrite en section 5). La filiale française (société `FR`) reçoit le 4 mai 2026, dans M3 (elle a basculé le 7 avril), la commande 45872 d'un distributeur : 100 paires de gants (ligne 1) et 20 harnais (ligne 2). On suit les gants. Les noms de colonnes sont indicatifs : ils seront fixés précisément lors de la conception des sources.
 
 *1. `fct_order_lines` : une ligne par ligne de commande.*
 
