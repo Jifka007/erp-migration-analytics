@@ -290,12 +290,14 @@ def apply_fulfilment_delay(
       promesse actuelle (promised_date), jamais la première promesse ;
     - expédition en deux fois : une partie part à la date prévue, le
       reliquat plus tard ;
-    - annulation : une part des reliquats n'est jamais expédiée.
+    - annulation : une part des reliquats n'est jamais expédiée (motif
+      supplier : décidée par Delta Plus).
     Les quantités sont conservées : expédié + annulé = commandé.
     """
     params = effect["parameters"]
     lines = shipments.copy()
     lines["cancelled_quantity"] = lines.get("cancelled_quantity", 0)
+    lines["cancellation_reason_code"] = lines.get("cancellation_reason_code", None)
     in_scope = scope_mask(lines, effect)
     strength = effect_strength(lines["order_date"], effect)
 
@@ -328,6 +330,8 @@ def apply_fulfilment_delay(
     remainders.loc[cancelled, "cancelled_quantity"] = remainders.loc[cancelled, "shipped_quantity"]
     remainders.loc[cancelled, "shipped_quantity"] = 0
     remainders.loc[cancelled, "shipped_date"] = pd.NaT
+    # Un reliquat abandonné est une annulation décidée par Delta Plus.
+    remainders.loc[cancelled, "cancellation_reason_code"] = "supplier"
 
     return pd.concat([lines, remainders], ignore_index=True)
 

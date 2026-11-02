@@ -67,6 +67,7 @@ Table OOLINE {
   OBCODT numeric(8,0) [note: 'Date confirmée actuelle']
   OBDLQT numeric(15,6) [note: 'Quantité livrée']
   OBCAQT numeric(15,6) [note: 'Quantité annulée']
+  OBCARS varchar(3) [note: 'Motif d annulation : 10 client, 20 Delta Plus, vide si aucune']
   OBORST varchar(2) [note: 'Statut, 99 = terminée ou annulée (verifie)']
   OBLMDT numeric(8,0) [note: 'Dernière modification']
   indexes { (OBCONO, OBORNO, OBPONR, OBPOSX) [pk] }

@@ -120,6 +120,7 @@ C'est la seule source du coût utilisé pour la marge et la valeur du stock (doc
 | `LCQLIV` | NUMERIC(11,3) | Quantité déjà livrée, cumulée | sert de contrôle |
 | `LCQANN` | NUMERIC(11,3) | Quantité annulée | `cancelled_quantity` |
 | `LCDTAN` | NUMERIC(7,0) | Date d'annulation ; `0` si aucune | `cancelled_date` |
+| `LCMTAN` | CHAR(2) | Motif d'annulation : `CL` à la demande du client, `RU` rupture ou reliquat abandonné par Delta Plus ; blanc si aucune annulation, parfois aussi quand le motif n'a pas été saisi | `cancellation_reason_code` (`CL` → `customer`, `RU` → `supplier`, blanc avec une quantité annulée → `supplier`, règle prudente) |
 | `LCSTAT` | CHAR(1) | `O` ouverte, `S` soldée, `A` annulée, `M` migrée vers M3 (voir la section 5) | `order_line_status` |
 
 **La première date promise n'existe pas dans l'ancien ERP.** Un report écrase `LCDTPR`. Conséquence pour l'OTIF : voir la section 6.

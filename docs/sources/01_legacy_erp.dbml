@@ -74,6 +74,7 @@ Table CDELIG {
   LCQLIV numeric(11,3) [note: 'Quantité livrée cumulée']
   LCQANN numeric(11,3) [note: 'Quantité annulée']
   LCDTAN numeric(7,0) [note: 'Date d annulation, 0 si aucune']
+  LCMTAN char(2) [note: 'Motif d annulation : CL client, RU rupture ou reliquat abandonné, blanc si aucune']
   LCSTAT char(1) [note: 'O ouverte, S soldée, A annulée']
   indexes {
     (LCSOC, LCNUM, LCLIG) [pk]

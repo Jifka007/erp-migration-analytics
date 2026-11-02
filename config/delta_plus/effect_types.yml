@@ -155,7 +155,9 @@ effect_types:
       late_share: part supplémentaire de lignes expédiées en retard
       average_delay_days: retard moyen de ces lignes, en jours
       partial_share: part supplémentaire de lignes expédiées en plusieurs fois
-      cancellation_share: part des reliquats finalement annulés
+      cancellation_share: >
+        part des reliquats finalement annulés, par Delta Plus
+        (motif supplier : une vente perdue)
       reschedule_share: >
         part des lignes en retard dont la promesse actuelle est repoussée
         (le client est prévenu) ; la première promesse ne bouge jamais
