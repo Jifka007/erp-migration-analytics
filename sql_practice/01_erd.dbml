@@ -1,0 +1,28 @@
+// Entraînement SQL, thème 1 : les deux tables, sans relation pour l'instant.
+// À coller dans dbdiagram.io. La relation (Ref) sera ajoutée par Jonathan
+// au fil des questions : quelle clé, quelle cardinalité ?
+
+Table order_lines {
+  entity_id varchar [note: 'Filiale (FR, DE)']
+  order_number varchar [note: 'Numéro de commande, propre à chaque filiale']
+  order_line_number int [note: 'Numéro de ligne dans la commande']
+  customer_id varchar
+  product_id varchar
+  order_date date
+  first_promised_date date [note: 'Première date promise, base de l OTIF']
+  ordered_quantity int
+  cancelled_quantity int
+  net_unit_price_eur float
+  Note: 'Une ligne = une ligne de commande (12 lignes)'
+}
+
+Table deliveries {
+  delivery_number varchar [note: 'Numéro d expédition']
+  entity_id varchar
+  order_number varchar
+  order_line_number int
+  warehouse_id varchar [note: 'Site d expédition (FR-APT)']
+  shipped_date date
+  shipped_quantity int
+  Note: 'Une ligne = une expédition d une ligne de commande (11 lignes)'
+}
