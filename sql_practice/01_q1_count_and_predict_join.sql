@@ -43,13 +43,13 @@
 WITH order_line_totals AS (
     SELECT
         COUNT(*) AS order_line_count
-    FROM sql_practice.order_lines
+    FROM sql_practice.order_lines AS ol
 ),
 
 delivery_totals AS (
     SELECT
         COUNT(*) AS delivery_count
-    FROM sql_practice.deliveries
+    FROM sql_practice.deliveries AS d
 ),
 
 joined_row_totals AS (
@@ -57,9 +57,9 @@ joined_row_totals AS (
         COUNT(*) AS joined_row_count
     FROM sql_practice.order_lines AS ol
     LEFT JOIN sql_practice.deliveries AS d
-        ON  d.entity_id         = ol.entity_id
-        AND d.order_number      = ol.order_number
-        AND d.order_line_number = ol.order_line_number
+        ON  ol.entity_id         = d.entity_id
+        AND ol.order_number      = d.order_number
+        AND ol.order_line_number = d.order_line_number
 )
 
 SELECT
