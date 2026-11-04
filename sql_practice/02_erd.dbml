@@ -1,0 +1,88 @@
+// Entraînement SQL, thème 2 : les cinq tables et leurs relations.
+// À coller dans dbdiagram.io.
+
+Table order_lines {
+  entity_id varchar [note: 'Filiale (FR, DE)']
+  order_number varchar [note: 'Numéro de commande, propre à chaque filiale']
+  order_line_number int [note: 'Numéro de ligne dans la commande']
+  customer_id varchar
+  product_id varchar
+  order_date date
+  first_promised_date date [note: 'Première date promise, base de l OTIF']
+  ordered_quantity int
+  cancelled_quantity int
+  net_unit_price_eur float
+  indexes {
+    (entity_id, order_number, order_line_number) [pk]
+  }
+  Note: 'Une ligne = une ligne de commande (12 lignes)'
+}
+
+Table deliveries {
+  delivery_number varchar [note: 'Numéro d expédition']
+  entity_id varchar
+  order_number varchar
+  order_line_number int
+  warehouse_id varchar [note: 'Site d expédition (FR-APT)']
+  shipped_date date
+  shipped_quantity int
+  indexes {
+    (entity_id, delivery_number, order_number, order_line_number) [pk]
+  }
+  Note: 'Une ligne = une expédition d une ligne de commande (11 lignes)'
+}
+
+Table products {
+  product_id varchar [pk, note: 'Code article du groupe']
+  product_name varchar
+  product_line_id varchar [note: 'Gamme : HAND, FOOT, FALL, HEAD']
+  list_unit_price_eur float [note: 'Prix catalogue']
+  Note: 'Une ligne = un article du référentiel (5 lignes)'
+}
+
+Table legacy_migrated_lines {
+  entity_id varchar
+  legacy_order_number varchar [note: 'Numéro de commande dans l ancien ERP']
+  legacy_line_number int
+  product_id varchar
+  open_quantity int [note: 'Quantité restant à livrer à la bascule']
+  line_status varchar [note: 'M = migrée vers M3']
+  indexes {
+    (entity_id, legacy_order_number, legacy_line_number) [pk]
+  }
+  Note: 'Une ligne = une ligne ouverte de l ancien ERP à la bascule du 7 avril 2026 (6 lignes)'
+}
+
+Table m3_migrated_lines {
+  entity_id varchar
+  order_number varchar [note: 'Numéro de commande dans M3']
+  order_line_number int
+  product_id varchar
+  ordered_quantity int
+  migration_order_number varchar [note: 'Commande d origine dans l ancien ERP, parfois vide']
+  migration_line_number int [note: 'Ligne d origine, parfois vide']
+  indexes {
+    (entity_id, order_number, order_line_number) [pk]
+  }
+  Note: 'Une ligne = une ligne créée dans M3 pour reprendre une ligne de l ancien ERP (7 lignes)'
+}
+
+// Thème 1 : une ligne de commande a 0, 1 ou plusieurs livraisons ;
+// une livraison appartient à une seule ligne de commande.
+Ref: deliveries.(entity_id, order_number, order_line_number) > order_lines.(entity_id, order_number, order_line_number)
+
+// Thème 2 : un article pour plusieurs lignes, dans chaque système.
+// Relation attendue ; dans les données, HAND-0310 (2 lignes de commande,
+// ligne 31020/1 de l ancien ERP) n existe pas dans products : défaut de
+// référentiel, trouvé par anti-jointure (question 2.2).
+Ref: order_lines.product_id > products.product_id
+Ref: legacy_migrated_lines.product_id > products.product_id
+Ref: m3_migrated_lines.product_id > products.product_id
+
+// Thème 2 : la reprise à la bascule.
+// Une ligne de l ancien ERP a 0, 1 ou plusieurs reprises dans M3
+// (0 : perdue ; plusieurs : doublon ou fractionnement).
+// Une ligne M3 a 0 ou 1 ligne d origine : la référence de migration est
+// une clé étrangère facultative (vide sur 50007/1) et parfois cassée
+// (31099/1 n existe pas).
+Ref: m3_migrated_lines.(entity_id, migration_order_number, migration_line_number) > legacy_migrated_lines.(entity_id, legacy_order_number, legacy_line_number)
