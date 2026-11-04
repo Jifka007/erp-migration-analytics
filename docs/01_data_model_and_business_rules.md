@@ -233,6 +233,19 @@ La table `map_transactions` relie chaque commande de l'ancien ERP à son équiva
 
 **Pourquoi on ne compare ni la date de commande ni la quantité commandée.** Dans le nouvel ERP, la date de commande est souvent celle de la migration, pas celle d'origine. Et seule la quantité restant à livrer est migrée : si 50 paires étaient parties avant la bascule, le nouvel ERP n'en contient que 150.
 
+**Plusieurs reprises pour une même ligne d'origine : fractionnement ou doublon.** Une fois les reprises rapprochées, on contrôle chaque ligne d'origine au grain de cette ligne : nombre de reprises dans M3 et quantité totale reprise, comparés à la quantité restant à livrer. Plusieurs reprises ne signifient pas toujours un doublon : une ligne de 30 pièces peut être recréée en deux lignes de 20 et 10, pour deux dates de livraison. La colonne `reprise_status` de `map_transactions` distingue les cas :
+
+| Reprises | Quantité totale reprise | `reprise_status` | Traitement |
+| --- | --- | --- | --- |
+| 0 | — | `missing_in_m3` | Ligne perdue à la bascule : signalée, valorisée |
+| 1 | égale à la quantité restante | `matched` | Normal |
+| 1 | différente | `quantity_mismatch` | Écart de reprise : signalé, valorisé |
+| 2 ou plus | égale à la quantité restante | `split` | Fractionnement : normal |
+| 2 ou plus | égale à la quantité restante × nombre de reprises | `duplicate` | Doublon : une seule reprise est gardée, les autres sont retirées du carnet et du CA |
+| 2 ou plus | autre | `duplicate_with_quantity_gap` | À examiner : doublon et écart mêlés |
+
+Le statut unique sert à lire et à compter ; des indicateurs séparés (`is_missing_in_m3`, `is_duplicate`, `has_quantity_gap`) gardent toutes les anomalies d'une ligne, qui peut en cumuler plusieurs. La somme des écarts, avec les lignes du nouvel ERP sans ligne d'origine, explique l'écart total entre la quantité restante dans l'ancien ERP et la quantité reprise dans M3.
+
 | Règle | Source | À valider avec |
 | --- | --- | --- |
 | Conserver une référence explicite entre l'ancien et le nouveau numéro | Pratique courante (bonne pratique de migration) | Équipe de migration |
