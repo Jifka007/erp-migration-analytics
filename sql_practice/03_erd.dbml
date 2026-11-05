@@ -1,0 +1,43 @@
+// Entraînement SQL, thème 3 : les lignes de facture et le référentiel articles.
+// À coller dans dbdiagram.io.
+
+Table sales_lines {
+  entity_id varchar [note: 'Filiale qui facture (FR, DE)']
+  invoice_number varchar [note: 'Numéro de facture (F-…) ou d avoir (A-…)']
+  invoice_line_number int
+  invoice_date date
+  customer_id varchar [note: 'IC-… = une autre filiale du groupe']
+  product_id varchar
+  document_type varchar [note: 'invoice ou credit_note']
+  credit_note_type varchar [note: 'return ou price_adjustment ; NULL pour une facture']
+  is_intercompany boolean [note: 'Vente à une autre filiale du groupe']
+  invoiced_quantity int [note: 'Négative pour un avoir de retour, 0 pour un geste commercial']
+  list_unit_price_eur float [note: 'Prix catalogue unitaire']
+  discount_rate float [note: 'Remise, entre 0 et 1']
+  net_amount_eur float [note: 'Montant net, négatif pour un avoir']
+  cost_amount_eur float [note: 'Coût de revient des marchandises vendues']
+  original_invoice_number varchar [note: 'Pour un avoir : la facture corrigée ; NULL pour une facture']
+  original_invoice_line_number int [note: 'Pour un avoir : la ligne corrigée']
+  indexes {
+    (entity_id, invoice_number, invoice_line_number) [pk]
+  }
+  Note: 'Une ligne = une ligne de facture ou d avoir (18 lignes)'
+}
+
+Table products {
+  product_id varchar [pk, note: 'Code article du groupe']
+  product_name varchar
+  product_line_id varchar [note: 'Gamme : HAND, FOOT, FALL, HEAD']
+  list_unit_price_eur float [note: 'Prix catalogue de référence']
+  Note: 'Une ligne = un article du référentiel (5 lignes)'
+}
+
+// Chaque ligne de vente porte un article du référentiel ; un article peut
+// être vendu sur plusieurs lignes, ou jamais (FOOT-0200, HEAD-0005).
+Ref: sales_lines.product_id > products.product_id
+
+// Lien d'un avoir vers la ligne de facture qu'il corrige (même table) :
+// (entity_id, original_invoice_number, original_invoice_line_number)
+// > (entity_id, invoice_number, invoice_line_number). Facultatif : NULL
+// pour une facture, parfois absent ou cassé pour un avoir (A-2003,
+// A-6002). Non dessiné ici : utilisé à la question bonus 3.5.

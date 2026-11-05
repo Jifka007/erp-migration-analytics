@@ -1,0 +1,38 @@
+-- =====================================================================
+-- Thème 3 – Agrégations conditionnelles
+-- Question 3.5 (bonus) – Relier les avoirs à leur facture d'origine
+-- =====================================================================
+-- Énoncé :
+--   (a) Pour chaque ligne de facture externe (ventes internes exclues),
+--       la quantité facturée, la quantité retournée (avoirs de retour
+--       qui la référencent, en positif), le montant des gestes
+--       commerciaux qui la référencent, et le taux de retour (quantité
+--       retournée / quantité facturée, entre 0 et 1). Une ligne sans
+--       avoir garde 0 retourné. Puis le taux de retour par article,
+--       calculé sur les sommes.
+--   (b) Contrôle : lister les avoirs dont la facture d'origine est
+--       absente (référence vide) ou introuvable (référence qui ne
+--       correspond à aucune ligne de facture), avec un orphan_reason
+--       ('missing_reference' ou 'unknown_reference') et leur montant.
+--   Vérifier : montant des avoirs rattachés + montant des orphelins
+--   = montant total des avoirs, par filiale.
+-- Tables : sql_practice.sales_lines (deux fois : facture et avoir)
+-- Date de référence : 2026-09-30
+-- ---------------------------------------------------------------------
+-- Grain du résultat : une ligne = ...
+--   Étape 1 : une ligne = ...
+--
+-- Prédiction de contrôle (avant d'exécuter) :
+--   1. Nombre de lignes : ...
+--   2. Totaux de contrôle : ...
+--   3. Cas limites : ...
+--
+-- Raisonnement : ...
+-- ---------------------------------------------------------------------
+
+-- Ta requête ici
+
+-- ---------------------------------------------------------------------
+-- Résultat obtenu : ...
+-- Écart avec la prédiction : ...
+-- Ce que je retiens : ...
