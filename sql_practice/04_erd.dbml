@@ -1,0 +1,24 @@
+// Entraînement SQL, thème 4 : les factures par client et les filiales.
+// À coller dans dbdiagram.io.
+
+Table customer_invoices {
+  entity_id varchar [note: 'Filiale qui facture (FR, DE)']
+  invoice_number varchar
+  invoice_date date
+  customer_id varchar
+  net_amount_eur float
+  indexes {
+    (entity_id, invoice_number) [pk]
+  }
+  Note: 'Une ligne = une facture (en-tête) à un client extérieur (16 lignes, novembre 2024 à septembre 2026)'
+}
+
+Table entities {
+  entity_id varchar [pk]
+  entity_name varchar
+  Note: 'Une ligne = une filiale du groupe (2 lignes)'
+}
+
+// Chaque facture est émise par une filiale ; une filiale peut n'avoir
+// aucune facture un mois donné.
+Ref: customer_invoices.entity_id > entities.entity_id
